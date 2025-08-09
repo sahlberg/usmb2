@@ -2,14 +2,14 @@
 #ifndef _USMB2_H_
 #define _USMB2_H_
 
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 
-#ifdef HAVE_TIME_H
-#include <time.h>
-#endif
-
+/*
+ * Defines to enable features in usmb2:
+ * USMB2_FEATURE_WRITE : Adds support to write to files.
+ * USMB2_FEATURE_NTLM  : Adds support for NTLMv2
+ */
+   
 /* The largest buffer we need is for SMB2_CREATE as this PDU contains the full name
  * of the file being opened in UCS2, 2 bytes per character.
  *   4 bytes SPL

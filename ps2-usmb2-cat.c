@@ -53,13 +53,13 @@ int main(int argc, char *argv[])
         }
 
 
-        usmb2 = usmb2_init_context(htonl(0x0a0a0a0b)); /* 10.10.10.11 */
-        //usmb2 = usmb2_init_context(htonl(0xc0a87c65)); /* 192.168.124.101 */
+        //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b)); /* 10.10.10.11 */
+        usmb2 = usmb2_init_context(htonl(0xc0a87c65)); /* 192.168.124.101 */
         printf("usmb2:%p\n", usmb2);
 
         /* Map the share */
-        if (usmb2_treeconnect(usmb2, "\\\\10.10.10.11\\SNAP-1")) {
-        //if (usmb2_treeconnect(usmb2, "\\\\192.168.124.101\\Share")) {
+        //if (usmb2_treeconnect(usmb2, "\\\\10.10.10.11\\SNAP-1")) {
+        if (usmb2_treeconnect(usmb2, "\\\\192.168.124.101\\Share")) {
                 printf("failed to map share\n");
                 exit(10);
         }
@@ -76,11 +76,6 @@ int main(int argc, char *argv[])
         usmb2_pread(usmb2, fh, buf, 30, 2);
         printf("BUF: %s\n", buf);
         printf("Size: %d bytes\n", usmb2_size(usmb2, fh));
-
-
-
-
-
         
 	return rc;
 }

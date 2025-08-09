@@ -1,3 +1,6 @@
+/* -*-  mode:c; tab-width:8; c-basic-offset:8; indent-tabs-mode:nil;  -*- */
+#ifdef USMB2_FEATURE_NTLM
+
 /*
  * Derived from the RSA Data Security, Inc. MD5 Message-Digest Algorithm
  * and modified slightly to be functionally identical but condensed into control structures.
@@ -54,7 +57,7 @@ uint32_t rotateLeft(uint32_t x, uint8_t n){
 /*
  * Initialize a context
  */
-void md5Init(MD5Context *ctx){
+void md5Init(struct MD5Context *ctx){
     ctx->size = (uint64_t)0;
 
     ctx->buffer[0] = (uint32_t)A;
@@ -69,7 +72,7 @@ void md5Init(MD5Context *ctx){
  * If the input fills out a block of 512 bits, apply the algorithm (md5Step)
  * and save the result in the buffer. Also updates the overall size.
  */
-void md5Update(MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
+void md5Update(struct MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
     uint32_t input[16];
     unsigned int offset = ctx->size % 64;
     ctx->size += (uint64_t)input_len;
@@ -102,7 +105,7 @@ void md5Update(MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
  * Pad the current input to get to 448 bytes, append the size in bits to the very end,
  * and save the result of the final iteration into digest.
  */
-void md5Finalize(MD5Context *ctx){
+void md5Finalize(struct MD5Context *ctx){
     uint32_t input[16];
     unsigned int offset = ctx->size % 64;
     unsigned int padding_length = offset < 56 ? 56 - offset : (56 + 64) - offset;
@@ -184,3 +187,4 @@ void md5Step(uint32_t *buffer, uint32_t *input){
     buffer[2] += CC;
     buffer[3] += DD;
 }
+#endif /* USMB2_FEATURE_NTLM */

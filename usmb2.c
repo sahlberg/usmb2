@@ -22,6 +22,9 @@
 #include <unistd.h>
 
 #include "usmb2.h"
+#ifdef USMB2_FEATURE_NTLM
+#include "ntlm.h"
+#endif /* USMB2_FEATURE_NTLM */
 
 #define CMD_NEGOTIATE_PROTOCOL  0
 #define CMD_SESSION_SETUP       1
@@ -263,8 +266,18 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
         cmd = 1;
 
  again:
+#ifdef USMB2_FEATURE_NTLM
+        if (cmd == 3) {
+                len = ntlm_generate_auth(usmb2, "Administrator", "otto1234$$$$");
+                memset(usmb2->buf, 0, 4 + 64 + 24);
+        } else {
+                memset(usmb2->buf, 0, sizeof(usmb2->buf));
+                len = create_ntlmssp_blob(usmb2, cmd);
+        }
+#else
         memset(usmb2->buf, 0, sizeof(usmb2->buf));
         len = create_ntlmssp_blob(usmb2, cmd);
+#endif /* USMB2_FEATURE_NTLM */
 
         /*
          * Command header
@@ -277,10 +290,9 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
         *ptr = 0x58;
         ptr += 2;
         *(uint16_t *)ptr = htole16(len);
-
         
         status = usmb2_build_request(usmb2,
-                                     CMD_SESSION_SETUP, 24 + len, 64,
+                                     CMD_SESSION_SETUP, (24 + len + 7) & 0xfff8, 64,
                                      NULL, 0, NULL, 0);
         if (cmd == 1 && status == STATUS_MORE_PROCESSING) {
                 cmd = 3;
@@ -328,12 +340,20 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
 }
 
 /* OPEN */
-/* qqq TODO add support for O_RDWR */
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 {
         int len = strlen(name) * 2;
-        uint8_t *ptr;
+        uint8_t *ptr, da, di;
 
+        da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
+        di = 0x01; /* create disposition: open  if file exist open it, else fail */
+#ifdef USMB2_FEATURE_WRITE
+        if (mode == O_RDWR) {
+                da = 0x8b; /* desided access : READ, WRITE, READ EA, READ ATTRIBUTES */
+                di = 0x03; /* create disposition: open the file if it exists, otherwise create it */
+        }
+#endif /* USMB2_FEATURE_WRITE */
+        
         memset(usmb2->buf, 0, sizeof(usmb2->buf));
         /*
          * Command header
@@ -342,13 +362,13 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         usmb2->buf[4 + 64] = 0x39;
         /* impersonation level 2 */
         usmb2->buf[4 + 64 +  4] = 0x02;
-        /* desided access : READ, READ EA, READ ATTRIBUTES */
-        usmb2->buf[4 + 64 + 24] = 0x89;
+        /* desired access */
+        usmb2->buf[4 + 64 + 24] = da;
         /* share access : READ, WRITE */
         usmb2->buf[4 + 64 + 32] = 0x03;
-        /* create disposition: open  if file exist open it, else fail */
-        usmb2->buf[4 + 64 + 36] = 0x01;
-        /* create options: non-direcotry.  must not be a directory */
+        /* create disposition */
+        usmb2->buf[4 + 64 + 36] = di;
+        /* create options */
         usmb2->buf[4 + 64 + 40] = 0x40;
         /* name offset */
         usmb2->buf[4 + 64 + 44] = 0x78;
@@ -414,7 +434,7 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
         return u32;
 }
 
-#if 0
+#ifdef USMB2_FEATURE_WRITE
 /* WRITE */
 int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset)
 {
@@ -439,15 +459,17 @@ int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int co
         /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
         memcpy(ptr, fid, 16);
         
-        if (usmb2_build_request(usmb2, CMD_WRITE, qqq
-                                48 + count, buf, count, NULL, 0)) {
+        if (usmb2_build_request(usmb2,
+                                CMD_WRITE, 48, 16,
+                                buf, count, NULL, 0)) {
                    return -1;
         }
 
         /* number of bytes returned */
-        return le32toh(*(uint32_t *)&usmb2->buf[4 + 64 + 4]);
+        return le32toh(*(uint32_t *)&usmb2->buf[4]);
 }
-#endif
+#endif /* USMB2_FEATURE_WRITE */
+
 
 /* SIZE in bytes */
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)

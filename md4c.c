@@ -23,9 +23,8 @@
    These notices must be retained in any copies of any part of this
    documentation and/or software.
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+
+#ifdef USMB2_FEATURE_NTLM
 
 #include <stdint.h>
 
@@ -256,3 +255,6 @@ static void MD4_memset(unsigned char *output, int value, unsigned int len)
   for (i = 0; i < len; i++)
     ((char *)output)[i] = (char)value;
 }
+
+#endif /* USMB2_FEATURE_NTLM */
+
