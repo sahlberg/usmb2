@@ -268,7 +268,7 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
  again:
 #ifdef USMB2_FEATURE_NTLM
         if (cmd == 3) {
-                len = ntlm_generate_auth(usmb2, "Administrator", "otto1234$$$$");
+                len = ntlm_generate_auth(usmb2, usmb2->username, usmb2->password);
                 memset(usmb2->buf, 0, 4 + 64 + 24);
         } else {
                 memset(usmb2->buf, 0, sizeof(usmb2->buf));
@@ -504,7 +504,7 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
         return le64toh(*(uint32_t *)&usmb2->buf[8 + 8]);
 }
 
-struct usmb2_context *usmb2_init_context(uint32_t ip)
+struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password)
 {
         struct usmb2_context *usmb2;
         struct sockaddr_in sin;
@@ -515,6 +515,8 @@ struct usmb2_context *usmb2_init_context(uint32_t ip)
                 return NULL;
         }
 
+        usmb2->username = strdup(username);
+        usmb2->password = strdup(password);
         usmb2->fd = socket(AF_INET, SOCK_STREAM, 0);
 
         sin.sin_family = AF_INET;

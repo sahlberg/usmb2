@@ -21,13 +21,15 @@
 
 struct usmb2_context {
         int fd;
+        char *username;
+        char *password;
         uint64_t message_id;
         uint64_t session_id;
         uint32_t tree_id;
         uint8_t buf[USMB2_SIZE];
 };
 
-struct usmb2_context *usmb2_init_context(uint32_t ip);
+struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password);
 
 /* Connect to a share. The unc must be of the form \\ip-address\share-name
  * On success it will fill in tree id in the usmb2 context.
