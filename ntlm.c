@@ -14,7 +14,12 @@
 #include <stdio.h>
 
 /* We are trying to re-use the same buffer we use for reading and writing to the socket as much as possible.
- * Makes the code hairy but saves several hundred bytes of buffers
+ * Makes the code hairy but saves several hundred bytes of buffers.
+ * There are three things we nee from the original CHALLENGE message which was part of the previous reply
+ * we goot and which is stored un usmb2->buf.
+ * The server challenge, the TargetName and the TargetInfo. Are we are re-building the next SessionSetup request
+ * within the same buffer as the reply we need data from, we must be careful so that we copy the data from their old
+ * location in the reply to the new location in the to-be request before we overwrite that memory with new content.
  */
 int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
