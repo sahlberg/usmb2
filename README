@@ -24,6 +24,15 @@ It avoids memory allocation outside of initialization and uses a context that is
 ~250 bytes in size.
 
 
+LIWP
+====
+The coe in usmb2.c uses read()/write() to access the socket. Platforms that use special function
+to do this may need changes.
+For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() instead.
+
+#define write(a,b,c) lwip_send(a,b,c,0)
+#define read(a,b,c) lwip_recv(a,b,c,0)
+
 
 See ps2-ubms2-cat.c for a linux example on how to use to map a share and read a file.
 Memory consumption (on X86_64)
