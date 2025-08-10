@@ -1,0 +1,63 @@
+USMB2
+=====
+micro-SMB2   A tiny SMB2 implementation for where size matters.
+
+USMB2 strives to be as small as possible.
+The default is no authentication and depending on the server allowing access as a Guest user.
+See google for how to enable Guest access for windows file servers or see below for how
+to configure samba like that.
+
+Optionally, it can be compiled with NTLMV2 authentication, i.e. normal SMB authentication
+by compiling with -DUSMB2_FEATURE_NTLM.
+This however adds ~2800bytes of code when compiled for x86_64.
+
+By default it only supprots read-only access to files. Support for usmb2_prwite() and O_RDWR
+when opening files can be enabled by compiling with -DUSMB2_FEATURE_WRITE.
+This adds about 200 bytes of code size.
+
+
+At the time of writing, code size is approximately
+1300bytes with red/write support but no authentication. I.e. reququires to enable Guest access on the server.
+4200bytes with full authentication with user and password.
+
+It avoids memory allocation outside of initialization and uses a context that is
+~250 bytes in size.
+
+
+
+See ps2-ubms2-cat.c for a linux example on how to use to map a share and read a file.
+Memory consumption (on X86_64)
+16 bytes for each open file, the file ids.
+
+
+Currently does not support authentication and crypto, so just like the old
+smbman.irx you will need to configure samba (or windows) to allow Guest
+access. Like this :
+
+-- smb.conf snippet begin --
+[global]
+        workgroup = SAMBA
+        max protocol = SMB3
+        min protocol = CORE
+        ntlm auth = yes
+        null passwords = yes
+        lanman auth = yes
+        strict sync = no
+        keepalive = 0
+        security = user
+        passdb backend = tdbsam
+        usershare allow guests = yes
+        name resolve order = lmhosts bcast host wins
+        log level = 0
+        guest ok = yes
+        guest account = nobody
+        map to guest = Bad User
+
+[SNAP-1]
+        path = /data/SNAP-1
+        available = yes
+        read only = no
+        browsable = yes
+        writable = yes
+-- smb.conf snippet end --
+
