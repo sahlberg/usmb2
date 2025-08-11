@@ -26,12 +26,7 @@ hmac_md5(unsigned char *text0,
 	 unsigned char *digest)
 {
         struct MD5Context context;
-        unsigned char k_ipad[65];    /* inner padding -
-                                      * key XORd with ipad
-                                      */
-        unsigned char k_opad[65];    /* outer padding -
-                                      * key XORd with opad
-                                      */
+        unsigned char k_pad[65];
         unsigned char tk[16];
         int i;
         /* if key is longer than 64 bytes reset it to key=MD5(key) */
@@ -58,22 +53,19 @@ hmac_md5(unsigned char *text0,
          */
 
         /* start out by storing key in pads */
-        memset(k_ipad, 0, sizeof k_ipad);
-        memset(k_opad, 0, sizeof k_opad);
-        memmove(k_ipad, key, key_len);
-        memmove(k_opad, key, key_len);
+        memset(k_pad, 0, sizeof k_pad);
+        memmove(k_pad, key, key_len);
 
-        /* XOR key with ipad and opad values */
+        /* XOR key with ipad values */
         for (i=0; i<64; i++) {
-                k_ipad[i] ^= 0x36;
-                k_opad[i] ^= 0x5c;
-        }
+                k_pad[i] ^= 0x36;
+	}
         /*
          * perform inner MD5
          */
         md5Init(&context);                   /* init context for 1st
                                               * pass */
-        md5Update(&context, k_ipad, 64);     /* start with inner pad */
+        md5Update(&context, k_pad, 64);     /* start with inner pad */
 	while (text0 && *text0) {
 		uint16_t c = htole16(toupper(*text0++));
 		md5Update(&context, (uint8_t *)&c, 2);
@@ -91,7 +83,13 @@ hmac_md5(unsigned char *text0,
          */
         md5Init(&context);                   /* init context for 2nd
                                               * pass */
-        md5Update(&context, k_opad, 64);     /* start with outer pad */
+        /* XOR key with opad values */
+        memset(k_pad, 0, sizeof k_pad);
+        memmove(k_pad, key, key_len);
+        for (i=0; i<64; i++) {
+                k_pad[i] ^= 0x5c;
+        }
+        md5Update(&context, k_pad, 64);     /* start with outer pad */
         md5Update(&context, digest, 16);     /* then results of 1st
                                               * hash */
         md5Finalize(&context);          /* finish up 2nd pass */
