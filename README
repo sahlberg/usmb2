@@ -22,6 +22,7 @@ At the time of writing, code size is approximately
 
 It avoids memory allocation outside of initialization and uses a context that is
 ~250 bytes in size.
+Each filehandle that is created is 16 bytes in size.
 
 
 LIWP
@@ -35,9 +36,6 @@ For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() inste
 
 
 See ps2-ubms2-cat.c for a linux example on how to use to map a share and read a file.
-Memory consumption (on X86_64)
-16 bytes for each open file, the file ids.
-
 
 Currently does not support authentication and crypto, so just like the old
 smbman.irx you will need to configure samba (or windows) to allow Guest
