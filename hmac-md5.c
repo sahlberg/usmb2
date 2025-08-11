@@ -40,20 +40,6 @@ hmac_md5(unsigned char *text0,
 	 unsigned char *digest)
 {
         struct MD5Context context;
-        unsigned char tk[16];
-        int i;
-        /* if key is longer than 64 bytes reset it to key=MD5(key) */
-        if (key_len > 64) {
-		struct MD5Context tctx;
-
-                md5Init(&tctx);
-                md5Update(&tctx, key, key_len);
-                md5Finalize(&tctx);
-
-		memcpy(tk, tctx.digest, 16);
-                key = tk;
-                key_len = 16;
-        }
 
         /*
          * the HMAC_MD5 transform looks like:
