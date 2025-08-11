@@ -26,7 +26,8 @@ typedef uint32_t UWORD32;
 #endif
 
 void
-hmac_md5(unsigned char *text1, int text1_len,
+hmac_md5(unsigned char *text0, /* nul-terminated ASCII, encoed as UCS2 */
+	 unsigned char *text1, int text1_len,
 	 unsigned char *text2, int text2_len,
 	 unsigned char *key, unsigned int key_len,
 	 unsigned char *digest);

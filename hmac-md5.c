@@ -5,6 +5,8 @@
 /*
 ** Function: hmac_md5
 */
+#include <ctype.h>
+#include <endian.h>
 #include <strings.h>
 
 #include "md5.h"
@@ -17,7 +19,8 @@
  * caddr_t         digest;              caller digest to be filled in
  */
 void
-hmac_md5(unsigned char *text1, int text1_len,
+hmac_md5(unsigned char *text0,
+	 unsigned char *text1, int text1_len,
 	 unsigned char *text2, int text2_len,
 	 unsigned char *key, unsigned int key_len,
 	 unsigned char *digest)
@@ -71,7 +74,13 @@ hmac_md5(unsigned char *text1, int text1_len,
         md5Init(&context);                   /* init context for 1st
                                               * pass */
         md5Update(&context, k_ipad, 64);     /* start with inner pad */
-        md5Update(&context, text1, text1_len); /* then text of datagram */
+	while (text0 && *text0) {
+		uint16_t c = htole16(toupper(*text0++));
+		md5Update(&context, (uint8_t *)&c, 2);
+	}
+	if (text1) {
+		md5Update(&context, text1, text1_len); /* then text of datagram */
+	}
 	if (text2) {
 		md5Update(&context, text2, text2_len); /* then text of datagram */
 	}

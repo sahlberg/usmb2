@@ -3,7 +3,6 @@
 
 #ifdef USMB2_FEATURE_NTLM
 
-#include <ctype.h>
 #include <endian.h>
 
 #include "usmb2.h"
@@ -26,7 +25,6 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *password)
 {
         MD4_CTX ctx;
-        char utf16_username[32];
         char NTOWFv1[16], NTOWFv2[16], NTProofStr[16], z = 0, zero = 0;
         uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
@@ -156,14 +154,9 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         }
         MD4Final(NTOWFv1, &ctx);
 
-        user_name_len = 0;
-        while (*username) {
-                utf16_username[user_name_len++] = toupper(*username++);
-                utf16_username[user_name_len++] = 0;
-        }
-
         /* Compute NTOWFv2 */
-        hmac_md5(utf16_username, user_name_len,
+        hmac_md5(username,
+                 NULL, 0,
                  domain_name, domain_name_len,
                  NTOWFv1, 16, NTOWFv2);
 
@@ -180,7 +173,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         at_type = 4 + 64 + 24 + ntlm_response_offset;
         at_len = out_pdu_size - 4 - 64 - 24 - ntlm_response_offset;
         
-        hmac_md5(&usmb2->buf[at_type + 8],  at_len - 8,
+        hmac_md5(NULL,
+                 &usmb2->buf[at_type + 8],  at_len - 8,
                  NULL, 0,
                  NTOWFv2, 16, NTProofStr);
         memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset], NTProofStr, 16);

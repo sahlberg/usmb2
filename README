@@ -21,7 +21,7 @@ At the time of writing, code size is approximately
 4200bytes with full authentication with user and password.
 
 It avoids memory allocation outside of initialization and uses a context that is
-~250 bytes in size.
+~550 bytes in size.
 Each filehandle that is created is 16 bytes in size.
 
 

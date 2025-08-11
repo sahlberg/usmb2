@@ -12,7 +12,7 @@ md5.o: md5.c md5.h
 	gcc -Os -c md5.c -o md5.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
 
 hmac-md5.o: hmac-md5.c hmac-md5.h
-	gcc -Os -c hmac-md5.c -o hmac-md5.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
+	gcc -Os -g -c hmac-md5.c -o hmac-md5.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
 
 ntlm.o: ntlm.c ntlm.h md4.h
 	gcc -g -Os -c ntlm.c -o ntlm.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
