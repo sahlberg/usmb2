@@ -11,6 +11,20 @@
 
 #include "md5.h"
 
+unsigned char k_pad[65];
+
+static void
+init_pad(unsigned char *key, unsigned int key_len, char val)
+{		     
+        int i;
+
+        memset(k_pad, 0, sizeof k_pad);
+        memmove(k_pad, key, key_len);
+        for (i=0; i<64; i++) {
+                k_pad[i] ^= val;
+	}
+}
+
 /*
  * unsigned char*  text;                pointer to data stream/
  * int             text_len;            length of data stream
@@ -26,7 +40,6 @@ hmac_md5(unsigned char *text0,
 	 unsigned char *digest)
 {
         struct MD5Context context;
-        unsigned char k_pad[65];
         unsigned char tk[16];
         int i;
         /* if key is longer than 64 bytes reset it to key=MD5(key) */
@@ -52,19 +65,12 @@ hmac_md5(unsigned char *text0,
          * and text is the data being protected
          */
 
-        /* start out by storing key in pads */
-        memset(k_pad, 0, sizeof k_pad);
-        memmove(k_pad, key, key_len);
-
-        /* XOR key with ipad values */
-        for (i=0; i<64; i++) {
-                k_pad[i] ^= 0x36;
-	}
         /*
          * perform inner MD5
          */
         md5Init(&context);                   /* init context for 1st
                                               * pass */
+	init_pad(key, key_len, 0x36);
         md5Update(&context, k_pad, 64);     /* start with inner pad */
 	while (text0 && *text0) {
 		uint16_t c = htole16(toupper(*text0++));
@@ -83,12 +89,7 @@ hmac_md5(unsigned char *text0,
          */
         md5Init(&context);                   /* init context for 2nd
                                               * pass */
-        /* XOR key with opad values */
-        memset(k_pad, 0, sizeof k_pad);
-        memmove(k_pad, key, key_len);
-        for (i=0; i<64; i++) {
-                k_pad[i] ^= 0x5c;
-        }
+	init_pad(key, key_len, 0x5c);
         md5Update(&context, k_pad, 64);     /* start with outer pad */
         md5Update(&context, digest, 16);     /* then results of 1st
                                               * hash */
