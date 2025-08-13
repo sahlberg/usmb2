@@ -25,6 +25,23 @@ It avoids memory allocation outside of initialization and uses a context that is
 Each filehandle that is created is 16 bytes in size.
 
 
+Modules
+=======
+
+USMB2 is modular where you cna pick what features you want.
+By by default there is no authentication and no write support.
+
+Authentication
+--------------
+To enable NTLMSSP authentication with NTLMv2, compile with
+-DUSMB2_FEATURE_NTLM
+
+Write support
+-------------
+To enable support to open files with O_RDWR an to write to files, compile
+with -DUSMB2_FEATURE_WRITE
+
+
 LIWP
 ====
 The coe in usmb2.c uses read()/write() to access the socket. Platforms that use special function
@@ -37,9 +54,10 @@ For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() inste
 
 See ps2-ubms2-cat.c for a linux example on how to use to map a share and read a file.
 
-Currently does not support authentication and crypto, so just like the old
-smbman.irx you will need to configure samba (or windows) to allow Guest
-access. Like this :
+
+
+If using it without NTLM support you need to configure the server to allow
+Guest access. On samba you would do this something like:
 
 -- smb.conf snippet begin --
 [global]
