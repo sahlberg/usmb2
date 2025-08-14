@@ -25,7 +25,7 @@ struct usmb2_context {
         int fd;
         char *username;
         char *password;
-        long message_id; // need to fix this   is 64bit in the protocol
+        uint32_t message_id;
         long session_id; // need to fix this   is 64bit in the protocol
         long tree_id;
         unsigned char *buff;

@@ -156,8 +156,8 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
         *(uint32_t *)buf = htole32(0x00010000 + command);
         buf += 12; /* flags and next command are both 0, 8 bytes */
 
-        /* message id */
-        *(uint64_t *)buf = htole64(usmb2->message_id++);
+        /* message id. no 64 bit support on zcc */
+        *(uint32_t *)buf = htole32(usmb2->message_id++);
         buf += 12; /* 4 extra reserved bytes */
 
         /* tree id */
