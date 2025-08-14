@@ -20,7 +20,7 @@
 #define uint8_t unsigned char
 #define uint16_t short
 #define uint32_t long
-#define uint64_t long
+
 struct usmb2_context {
         int fd;
         char *username;
