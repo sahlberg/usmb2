@@ -548,7 +548,7 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
         ptr += 4;
 
         /* offset */
-        *(uint64_t *)ptr = htole64(0x00000068);
+        *(uint32_t *)ptr = htole32(0x00000068);
         ptr += 16;
 
         /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
