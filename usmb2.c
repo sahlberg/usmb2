@@ -165,7 +165,7 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
         buf += 4;
 
         /* session id */
-        *(uint64_t *)buf = usmb2->session_id;
+        memcpy(buf, usmb2->session_id, 8);
         buf += 24; /* 16 byte signature is all zero */
 
 
@@ -209,7 +209,7 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
         spl -= 64;
 
         if (command == CMD_SESSION_SETUP) {
-                usmb2->session_id = *(uint64_t *)(usmb2->buff + 0x28);
+                memcpy(usmb2->session_id, usmb2->buff + 0x28, 8);
         }
         if (command == CMD_TREE_CONNECT) {
                 usmb2->tree_id = *(uint32_t *)(usmb2->buff + 0x24);
