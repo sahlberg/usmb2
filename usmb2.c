@@ -8,16 +8,13 @@
 */
 #define _GNU_SOURCE
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
