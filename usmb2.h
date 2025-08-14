@@ -48,8 +48,8 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc);
  */
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode);
 
-int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset);
-int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset);
+int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint32_t offset);
+int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint32_t offset);
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
         
 #endif /* !_USMB2_H_ */

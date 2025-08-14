@@ -456,7 +456,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 
 
 /* READ */
-int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset)
+int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint32_t offset)
 {
         uint32_t u32;
         uint8_t *ptr = usmb2->buff + 4 + 64;
@@ -474,7 +474,7 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
         ptr += 4;
 
         /* offset */
-        *(uint64_t *)ptr = htole64(offset);
+        *(uint32_t *)ptr = htole32(offset);
         ptr += 8;
 
         /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
@@ -495,7 +495,7 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
 
 #ifdef USMB2_FEATURE_WRITE
 /* WRITE */
-int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset)
+int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint32_t offset)
 {
         uint8_t *ptr = usmb2->buff + 4 + 64;
 
@@ -512,7 +512,7 @@ int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int co
         ptr += 4;
 
         /* offset */
-        *(uint64_t *)ptr = htole64(offset);
+        *(uint32_t *)ptr = htole32(offset);
         ptr += 8;
 
         /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
