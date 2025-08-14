@@ -396,7 +396,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 
 
 /* READ */
-int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset)
+int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         uint32_t u32;
         uint8_t *ptr = &usmb2->buf[4 + 64];
@@ -435,7 +435,7 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
 
 #ifdef USMB2_FEATURE_WRITE
 /* WRITE */
-int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, int offset)
+int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         uint8_t *ptr = &usmb2->buf[4 + 64];
 
