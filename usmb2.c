@@ -38,6 +38,25 @@
 #define STATUS_MORE_PROCESSING  0xc0000016
 
 
+/*
+ * Special bufferless usmb2 implementation
+ * Replace with code to integrate with the stack.  API is
+ *
+ * get_buffer()  This returns to usmb2 a pointer to a static buffer where the TCP payload is
+ *               held.  Idea is that a stack might keep a single buffer for i/o
+ *               that is use to both receive TCP segments and also to send segments,
+ *               It is assume that this buffer pointer never changes for a tcp session.
+ *
+ * clear_buffer()  Clear the tcp payload buffer.
+ *
+ * send_pdu(len) : USMB2 has finishe constructing the SMB2 packet in the tcpo payload buffer.
+ *                 Length of tcp payload is 'len' so now the stack should sen the tcp segment
+ *                 to the server.
+ *
+ * len = wait_for_pdu() : wait until a reply is received from the server.  len is the amount of tcp payload
+ *               data to process.
+ */
+ 
 #define USMB2_SIZE 4096
 uint8_t buffer[USMB2_SIZE];
 
@@ -93,7 +112,9 @@ static int wait_for_pdu(struct usmb2_context *usmb2)
         return spl;
 }
 
-
+/*
+ * End of  Special bufferless usmb2 implementation
+ */
 
 
 
