@@ -116,7 +116,6 @@ static int wait_for_pdu(struct usmb2_context *usmb2)
 
 
 
-
 static int usmb2_build_request(struct usmb2_context *usmb2,
                                int command, int commandoutcount, int commandincount,
                                uint8_t *outdata, int outdatacount,
@@ -578,6 +577,7 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
         usmb2->buff = get_buffer();
         usmb2->username = strdup(username);
         usmb2->password = strdup(password);
+#if 0        
         usmb2->fd = socket(AF_INET, SOCK_STREAM, 0);
 
         sin.sin_family = AF_INET;
@@ -590,7 +590,7 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
                 free(usmb2);
                 return NULL;
         }
-
+#endif
         if (usmb2_negotiateprotocol(usmb2)) {
                 free(usmb2);
                 return NULL;
