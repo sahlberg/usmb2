@@ -27,8 +27,8 @@ struct usmb2_context {
         char *password;
         uint32_t message_id;
         uint8_t session_id[8];
-        long tree_id;
-        unsigned char *buff;
+        uint32_t tree_id;
+        uint8_t *buff;
 };
 
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password);
