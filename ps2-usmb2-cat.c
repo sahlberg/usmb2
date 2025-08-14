@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
         }
         
         /* Open the file */
-        fh = usmb2_open(usmb2, "advancedsettings.xml", O_RDONLY);
+        fh = usmb2_open(usmb2, "hello.txt", O_RDONLY);
         if (fh == NULL) {
 		printf("usmb2_open failed\n");
 		exit(10);

@@ -17,8 +17,6 @@
  *  56 bytes CREATE request header
  * ... and the remaining bytes for the filename being opened.
  */
-#define USMB2_SIZE 512
-
 struct usmb2_context {
         int fd;
         char *username;
@@ -26,7 +24,7 @@ struct usmb2_context {
         uint64_t message_id;
         uint64_t session_id;
         uint32_t tree_id;
-        uint8_t buf[USMB2_SIZE];
+        uint8_t *buff;
 };
 
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password);
