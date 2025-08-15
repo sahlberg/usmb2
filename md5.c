@@ -129,7 +129,7 @@ void md5Finalize(struct MD5Context *ctx){
                    (uint32_t)(ctx->input[(j * 4)]);
     }
     input[14] = (uint32_t)(ctx->size * 8);
-    input[15] = (uint32_t)((ctx->size * 8) >> 32);
+    input[15] = 0;
 
     md5Step(ctx->buffer, input);
 
