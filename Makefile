@@ -3,7 +3,7 @@
 all: ps2-usmb2-cat
 
 usmb2.o: usmb2.c usmb2.h
-	gcc -Os -c usmb2.c -o usmb2.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
+	gcc -Os -c usmb2.c -o usmb2.o -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
 
 md4c.o: md4c.c md4.h
 	gcc -Os -c md4c.c -o md4c.o -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM

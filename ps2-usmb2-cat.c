@@ -42,7 +42,7 @@ int usage(void)
 
 int main(int argc, char *argv[])
 {
-        uint8_t *fh;
+        uint8_t *fh, *dh;
         int rc = 0;
         struct usmb2_context *usmb2;
         
@@ -57,9 +57,16 @@ int main(int argc, char *argv[])
                 printf("failed to map share\n");
                 exit(10);
         }
+
+        /* Open a directory */
+        dh = usmb2_opendir(usmb2, "");
+        if (dh == NULL) {
+		printf("usmb2_opendir failed\n");
+		exit(10);
+        }
         
         /* Open the file */
-        fh = usmb2_open(usmb2, "advancedsettings.xml", O_RDONLY);
+        fh = usmb2_open(usmb2, "hello.txt", O_RDONLY);
         if (fh == NULL) {
 		printf("usmb2_open failed\n");
 		exit(10);

@@ -8,6 +8,7 @@
  * Defines to enable features in usmb2:
  * USMB2_FEATURE_WRITE : Adds support to write to files.
  * USMB2_FEATURE_NTLM  : Adds support for NTLMv2
+ * USMB2_FEATURE_OPENDIR : Adds support for opendir/readdir
  */
    
 /* The largest buffer we need is for SMB2_CREATE as this PDU contains the full name
@@ -49,5 +50,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode);
 int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
 int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
-        
+
+uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name);
+
 #endif /* !_USMB2_H_ */

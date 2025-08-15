@@ -342,16 +342,25 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 {
         int len = strlen(name) * 2;
-        uint8_t *ptr, da, di;
+        uint8_t *ptr, da, di, co, fa;
 
         da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
         di = 0x01; /* create disposition: open  if file exist open it, else fail */
+        fa = 0x00; /* file attributes: */
+        co = 0x40; /* create options: normal file */
 #ifdef USMB2_FEATURE_WRITE
         if (mode == O_RDWR) {
                 da = 0x8b; /* desided access : READ, WRITE, READ EA, READ ATTRIBUTES */
                 di = 0x03; /* create disposition: open the file if it exists, otherwise create it */
         }
 #endif /* USMB2_FEATURE_WRITE */
+#ifdef USMB2_FEATURE_OPENDIR
+        if (mode & O_DIRECTORY) {
+                da = 0x81; /* desided access: READ, READ ATTRIBUTES */ //qqq can we skip this???
+                fa = 0x10; /* file attributes: DIRECTORY */
+                co = 0x01; /* create options: directory */
+        }
+#endif /* USMB2_FEATURE_OPENDIR */
         
         memset(usmb2->buf, 0, sizeof(usmb2->buf));
         /*
@@ -363,12 +372,14 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         usmb2->buf[4 + 64 +  4] = 0x02;
         /* desired access */
         usmb2->buf[4 + 64 + 24] = da;
+        /* file attributes */
+        usmb2->buf[4 + 64 + 28] = fa;
         /* share access : READ, WRITE */
         usmb2->buf[4 + 64 + 32] = 0x03;
         /* create disposition */
         usmb2->buf[4 + 64 + 36] = di;
         /* create options */
-        usmb2->buf[4 + 64 + 40] = 0x40;
+        usmb2->buf[4 + 64 + 40] = co;
         /* name offset */
         usmb2->buf[4 + 64 + 44] = 0x78;
         /* name length in bytes. i.e. 2 times the number of ucs2 characters */
@@ -382,7 +393,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 
 
         if (usmb2_build_request(usmb2,
-                                CMD_CREATE, 0x38 + len, 88,
+                                CMD_CREATE, 0x38 + len + 8, 88,
                                 NULL, 0, NULL, 0)) {
                    return NULL;
         }
@@ -393,6 +404,13 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         }
         return ptr;
 }
+
+#ifdef USMB2_FEATURE_OPENDIR
+uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name)
+{
+        return usmb2_open(usmb2, name, O_RDONLY | O_DIRECTORY);
+}
+#endif /* USMB2_FEATURE_OPENDIR */
 
 
 /* READ */
