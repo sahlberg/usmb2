@@ -36,9 +36,7 @@ uint32_t pos;
 int usage(void)
 {
         fprintf(stderr, "Usage:\n"
-                "smb2-cat-sync <smb2-url>\n\n"
-                "URL format: "
-                "smb://[<domain;][<username>@]<host>[:<port>]/<share>/<path>\n");
+                "ps2-usmb2-cat\n");
         exit(1);
 }
 
@@ -48,10 +46,6 @@ int main(int argc, char *argv[])
         int rc = 0;
         struct usmb2_context *usmb2;
         
-        if (argc < 2) {
-                usage();
-        }
-
 
         //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b)); /* 10.10.10.11 */
         usmb2 = usmb2_init_context(htonl(0xc0a87c65), "Administrator", "otto1234$$$$"); /* 192.168.124.101 */
