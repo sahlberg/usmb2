@@ -15,9 +15,7 @@ By default it only supprots read-only access to files. Support for usmb2_prwite(
 when opening files can be enabled by compiling with -DUSMB2_FEATURE_WRITE.
 This adds about 200 bytes of code size.
 
-Support for opendir/readdir can be enabled with -DUSMB2_FEATURE_OPENDIR. Note, while a direcotry is
-open the only supported call is readdir(). If you perform any other usmb2 function calls
-to the server, future calls to readdir on the open handle will not work.
+Support for opendir/readdir can be enabled with -DUSMB2_FEATURE_OPENDIR.
 
 
 At the time of writing, code size is approximately

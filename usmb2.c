@@ -31,10 +31,14 @@
 #define CMD_CREATE              5
 #define CMD_READ                8
 #define CMD_WRITE               9
-#define CMD_GETINFO            16
+#define CMD_QUERYDIR           14
+#define CMD_QUERYINFO          16
 
 #define STATUS_SUCCESS          0x00000000
 #define STATUS_MORE_PROCESSING  0xc0000016
+
+/* Amount of QUERY_DIR payload to store in the directory handle */
+#define MAX_DIR_SIZE 256
 
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
@@ -398,6 +402,11 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
                    return NULL;
         }
 
+#ifdef USMB2_FEATURE_OPENDIR
+        if (mode & O_DIRECTORY)
+                ptr = calloc(1, 16 + MAX_DIR_SIZE);
+        else
+#endif /* USMB2_FEATURE_OPENDIR */
         ptr = malloc(16);
         if (ptr) {
                 memcpy(ptr, &usmb2->buf[64], 16);
@@ -410,6 +419,75 @@ uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name)
 {
         return usmb2_open(usmb2, name, O_RDONLY | O_DIRECTORY);
 }
+
+/*
+ * Returns a directory entry in [MS-FSCC] 2.4.10 FileDirectoryInformation format.
+ * except filename is returned as nul-terminated 7-bit ASCII string.
+ * All fields are in little-endian.
+ */
+uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh)
+{
+        uint8_t *ptr = &usmb2->buf[4 + 64];
+        uint32_t u32, curr_de, next_de;
+        int i;
+        
+        if (!*(uint32_t *)&dh[16]) {
+                memset(usmb2->buf, 0, sizeof(usmb2->buf));
+                /*
+                 * Command header
+                 */
+                /* struct size (16 bits) + FILE_DIRECTORY_INFORMATION */
+                *(uint32_t *)ptr = htole32(0x00010021);
+                ptr += 8; /* file index == 0 */
+
+                /* FileId */
+                memcpy(ptr, dh, 16);
+                ptr += 16;
+
+                /* FileNameOffset */
+                *ptr = 0x60;
+                ptr+=2;
+                /* FileNameLength */
+                *ptr = 0x02;
+                ptr+=2;
+                /* OutputBufferLength */
+                *(uint32_t *)ptr = htole32(MAX_DIR_SIZE - 4);
+                ptr += 4;
+                /* FileName */
+                *ptr = 0x2a;
+                
+                if (usmb2_build_request(usmb2,
+                                        CMD_QUERYDIR, 40, 8,
+                                        NULL, 0, NULL, 0)) {
+                        return NULL;
+                }
+                
+                u32 = le32toh(*(uint32_t *)&usmb2->buf[4]);
+                memcpy(&dh[16 + 4], &usmb2->buf[8], u32);
+                *(uint32_t *)&dh[16] = 4;
+        }
+        curr_de = le32toh(*(uint32_t *)&dh[16]);
+        next_de = le32toh(*(uint32_t *)&dh[16 + curr_de]);
+        if (next_de) {
+                *(uint32_t *)&dh[16] = curr_de + next_de;
+        } else {
+                *(uint32_t *)&dh[16] = 0;
+        }
+
+
+        /* file name length */
+        ptr = &dh[16 + curr_de + 0x3c];
+        u32 = le32toh(*(uint32_t *)&ptr[0]) >> 1;
+        ptr += 4;
+        for(i = 0; i < u32; i++) {
+                /* assume the world is 7-bit ASCII clean */
+                /* should be changed to usc2 -> utf8 instead of this hack */
+                ptr[i] = ptr[i * 2];
+        }
+        ptr[i] = 0;
+        return &dh[16 + curr_de];
+}
+
 #endif /* USMB2_FEATURE_OPENDIR */
 
 
@@ -423,7 +501,7 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
         /*
          * Command header
          */
-        /* struct size (16 bits) + FILE_INFO + SMB2_FILE_STANDARD_INFO */
+        /* struct size (16 bits) */
         *(uint32_t *)ptr = htole32(0x00000031);
         ptr += 4;
         
@@ -513,7 +591,7 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
         memcpy(ptr, fid, 16);
 
         if (usmb2_build_request(usmb2,
-                                CMD_GETINFO, 40, 8,
+                                CMD_QUERYINFO, 40, 8,
                                 NULL, 0, NULL, 0)) {
                    return -1;
         }

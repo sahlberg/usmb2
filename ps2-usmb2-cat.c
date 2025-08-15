@@ -42,7 +42,7 @@ int usage(void)
 
 int main(int argc, char *argv[])
 {
-        uint8_t *fh, *dh;
+        uint8_t *fh, *dh, *de;
         int rc = 0;
         struct usmb2_context *usmb2;
         
@@ -64,6 +64,14 @@ int main(int argc, char *argv[])
 		printf("usmb2_opendir failed\n");
 		exit(10);
         }
+        /*
+         * de is a directory entry in [MS-FSCC] 2.4.10 FileDirectoryInformation format
+         * except filename is returned as nul-terminated 7-bit ASCII string.
+         * All fields are in little-endian.
+         */
+        while(de = usmb2_readdir(usmb2, dh)) {
+                printf("%s %12lld %s\n", (de[0x38]&0x10)?"DIRECTORY ":"FILE      ", le64toh(*(uint64_t *)&de[0x28]), &de[0x40]);
+        }                
         
         /* Open the file */
         fh = usmb2_open(usmb2, "hello.txt", O_RDONLY);

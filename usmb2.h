@@ -52,5 +52,6 @@ int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int co
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
 
 uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name);
+uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh);
 
 #endif /* !_USMB2_H_ */
