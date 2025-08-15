@@ -38,9 +38,9 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
         uint16_t user_name_offset, user_name_len;
-        uint16_t ntlm_response_offset, ntlm_response_len;
+        uint16_t ntlm_response_offset;
         uint16_t at_type, at_len, out_pdu_size;
-        uint16_t target_info_len; char *target_info;
+        char *target_info;
 
         /* Set offset to start of ntlmssp blob */
         ntlmssp_in_offset = le16toh(*(uint16_t *)&usmb2->buf[4]) - 64;
@@ -73,7 +73,6 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          * In the AUTH we are building the LmChallengeResponse data often ends up laid
          * your starting at offset ~110 and the AvPairs are laid out another 16 + 28 bytes into that.
          */
-        target_info_len = le16toh(*(uint16_t *)&usmb2->buf[ntlmssp_in_offset + 40]);
         target_info = &usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[ntlmssp_in_offset + 44])];
 
         /* Copy everything except the trailing EndOfList */
