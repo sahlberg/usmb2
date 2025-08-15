@@ -18,13 +18,15 @@ This adds about 200 bytes of code size.
 Support for opendir/readdir can be enabled with -DUSMB2_FEATURE_OPENDIR.
 
 
-At the time of writing, code size is approximately
-1300bytes with red/write support but no authentication. I.e. reququires to enable Guest access on the server.
-4200bytes with full authentication with user and password.
+At the time of writing, code size when compiled for for x86_64 is approximately.
+Without authentication support.
+1330 bytes: basic support  I.e. map a share, open files for reading and read from them.
+1532 bytes: basic support + file write support
+1793 bytes: basic support + file write support + opendir()/readdir() support.
 
-It avoids memory allocation outside of initialization and uses a context that is
-~550 bytes in size.
-Each filehandle that is created is 16 bytes in size.
+USMB2 context is ~550 bytes in size.
+Each open file handle uses 16 bytes.
+Each open directory handle uses 16 + 256 bytes.
 
 
 Modules
@@ -42,11 +44,18 @@ Write support
 -------------
 To enable support to open files with O_RDWR an to write to files, compile
 with -DUSMB2_FEATURE_WRITE
+This adds about 200 bytes to the code size when compiled for x86_64.
 
+opendir support
+---------------
+To enable opendir()/readdir() support, compile with -DUSMB2_FEATURE_OPENDIR.
+It only supports 7-bit ASCII names and required ~210 bytes of additional code when
+compiled to x86_64.
+Directory handle is 16 + 256 bytes in size.
 
 LIWP
 ====
-The coe in usmb2.c uses read()/write() to access the socket. Platforms that use special function
+The code in usmb2.c uses read()/write() to access the socket. Platforms that use special function
 to do this may need changes.
 For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() instead.
 
