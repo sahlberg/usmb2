@@ -49,7 +49,6 @@ static void MD4Transform(uint32_t [4], unsigned char [64]);
 static void Encode(unsigned char *, uint32_t *, unsigned int);
 static void Decode(uint32_t *, unsigned char *, unsigned int);
 static void MD4_memcpy(unsigned char *, unsigned char *, unsigned int);
-static void MD4_memset(unsigned char *, int, unsigned int);
 
 static unsigned char PADDING[64] = {
   0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -198,10 +197,6 @@ static void MD4Transform(uint32_t state[4], unsigned char block[64])
   state[1] += b;
   state[2] += c;
   state[3] += d;
-
-  /* Zeroize sensitive information.
-   */
-  MD4_memset ((unsigned char *)x, 0, sizeof (x));
 }
 
 /* Encodes input (uint32_t) into output (unsigned char). Assumes len is
@@ -239,16 +234,6 @@ static void MD4_memcpy(unsigned char *output, unsigned char *input, unsigned int
 
   for (i = 0; i < len; i++)
     output[i] = input[i];
-}
-
-/* Note: Replace "for loop" with standard memset if possible.
- */
-static void MD4_memset(unsigned char *output, int value, unsigned int len)
-{
-  unsigned int i;
-
-  for (i = 0; i < len; i++)
-    ((char *)output)[i] = (char)value;
 }
 
 #endif /* USMB2_FEATURE_NTLM */

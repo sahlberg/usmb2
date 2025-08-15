@@ -34,8 +34,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
                        char *password)
 {
-        MD4_CTX ctx;
-        char NTOWFv1[16], NTOWFv2[16], NTProofStr[16], z = 0, zero = 0;
+        char NTOWFv2[16], NTProofStr[16], z = 0, zero = 0;
         uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
         uint16_t user_name_offset, user_name_len;
@@ -153,22 +152,27 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
         usmb2->buf[4 + 64 + 24 + 8] = 3;
 
-        
+
+        /* At this point we no longer need to reference anything from the incoming security buffer
+         * so we can use the early parts of the buffer as a scratch area. 4 + 64 + 24 bytes.
+         */
         
         /* Generate NTOWFv1 */
-        MD4Init(&ctx);
+        /* The MD4 context is 64 bytes so it fits in the scratch area
+        * Store NTOWFv1 at offset 4 + 64 + 8 */
+        MD4Init((MD4_CTX *)&usmb2->buf[0]);
         zero = 0;
         while (*password) {
-                MD4Update(&ctx, password++, 1);
-                MD4Update(&ctx, &zero, 1);
+                MD4Update((MD4_CTX *)&usmb2->buf[0], password++, 1);
+                MD4Update((MD4_CTX *)&usmb2->buf[0], &zero, 1);
         }
-        MD4Final(NTOWFv1, &ctx);
+        MD4Final(&usmb2->buf[4 + 64 + 8], (MD4_CTX *)&usmb2->buf[0]);
 
         /* Compute NTOWFv2 */
         hmac_md5(username,
                  NULL, 0,
                  domain_name, domain_name_len,
-                 NTOWFv1, 16, NTOWFv2);
+                 &usmb2->buf[4 + 64 + 8], 16, NTOWFv2);
 
         /*
          * Clear beginning of ntlmv2 response and fill in all non-zero parts
@@ -188,8 +192,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                  NULL, 0,
                  NTOWFv2, 16, NTProofStr);
         memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset], NTProofStr, 16);
-        
-        
+
         return out_pdu_size - 4 - 64 - 24;
 }
 
