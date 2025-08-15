@@ -148,31 +148,26 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         /* Version */
         memset(&usmb2->buf[ntlmssp_out_offset + 60], 0, 8);
 
-        memcpy(&usmb2->buf[4 + 64 + 24], "NTLMSSP", 8);
-        memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
-        usmb2->buf[4 + 64 + 24 + 8] = 3;
-
-
         /* At this point we no longer need to reference anything from the incoming security buffer
-         * so we can use the early parts of the buffer as a scratch area. 4 + 64 + 24 bytes.
+         * so we can use the early parts of the buffer as a scratch area. 4 + 64 + 24 + 20 bytes.
          */
         
         /* Generate NTOWFv1 */
         /* The MD4 context is 64 bytes so it fits in the scratch area
-        * Store NTOWFv1 at offset 4 + 64 + 8 */
+        * Store NTOWFv1 at offset 4 + 64 + 24 + 4 */
         MD4Init((MD4_CTX *)&usmb2->buf[0]);
         zero = 0;
         while (*password) {
                 MD4Update((MD4_CTX *)&usmb2->buf[0], password++, 1);
                 MD4Update((MD4_CTX *)&usmb2->buf[0], &zero, 1);
         }
-        MD4Final(&usmb2->buf[4 + 64 + 8], (MD4_CTX *)&usmb2->buf[0]);
+        MD4Final(&usmb2->buf[4 + 64 + 24 + 4], (MD4_CTX *)&usmb2->buf[0]);
 
         /* Compute NTOWFv2 */
         hmac_md5(username,
                  NULL, 0,
                  domain_name, domain_name_len,
-                 &usmb2->buf[4 + 64 + 8], 16, NTOWFv2);
+                 &usmb2->buf[4 + 64 + 24 + 4], 16, NTOWFv2);
 
         /*
          * Clear beginning of ntlmv2 response and fill in all non-zero parts
@@ -193,6 +188,12 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                  NTOWFv2, 16, NTProofStr);
         memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset], NTProofStr, 16);
 
+
+        /* Fill in the first 20 bytes of the NTLMSSP buffer */
+        memcpy(&usmb2->buf[4 + 64 + 24], "NTLMSSP", 8);
+        memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
+        usmb2->buf[4 + 64 + 24 + 8] = 3;
+        
         return out_pdu_size - 4 - 64 - 24;
 }
 
