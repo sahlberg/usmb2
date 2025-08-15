@@ -17,12 +17,14 @@ This adds about 200 bytes of code size.
 
 Support for opendir/readdir can be enabled with -DUSMB2_FEATURE_OPENDIR.
 
+Unicode support is enabled by -DUSMB2_FEATURE_UNICODE
 
 At the time of writing, code size when compiled for for x86_64 is approximately.
 Without authentication support.
 1330 bytes: basic support  I.e. map a share, open files for reading and read from them.
 1532 bytes: basic support + file write support
 1793 bytes: basic support + file write support + opendir()/readdir() support.
+2398 bytes: basic support + file write support + opendir()/readdir() + unicode support.
 
 USMB2 context is ~550 bytes in size.
 Each open file handle uses 16 bytes.
@@ -49,9 +51,12 @@ This adds about 200 bytes to the code size when compiled for x86_64.
 opendir support
 ---------------
 To enable opendir()/readdir() support, compile with -DUSMB2_FEATURE_OPENDIR.
-It only supports 7-bit ASCII names and required ~210 bytes of additional code when
-compiled to x86_64.
-Directory handle is 16 + 256 bytes in size.
+
+unicode support
+---------------
+To enable unicode support, compile with -DUSMB2_FEATURE_UNICODE.
+In not enabled all filenames better be 7-bit ASCII.
+
 
 LIWP
 ====

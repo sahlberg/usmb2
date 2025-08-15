@@ -24,6 +24,9 @@
 #ifdef USMB2_FEATURE_NTLM
 #include "ntlm.h"
 #endif /* USMB2_FEATURE_NTLM */
+#ifdef USMB2_FEATURE_UNICODE
+#include "unicode.h"
+#endif /* USMB2_FEATURE_UNICODE */
 
 #define CMD_NEGOTIATE_PROTOCOL  0
 #define CMD_SESSION_SETUP       1
@@ -345,7 +348,7 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
 /* OPEN */
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 {
-        int len = strlen(name) * 2;
+        int len;
         uint8_t *ptr, da, di, co, fa;
 
         da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
@@ -386,15 +389,18 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         usmb2->buf[4 + 64 + 40] = co;
         /* name offset */
         usmb2->buf[4 + 64 + 44] = 0x78;
-        /* name length in bytes. i.e. 2 times the number of ucs2 characters */
-        usmb2->buf[4 + 64 + 46] = len;
-
+#ifdef USMB2_FEATURE_UNICODE
+        len = utf8_to_utf16(name, (uint16_t *)&usmb2->buf[4 + 0x78]) * 2;
+#else /* USMB2_FEATURE_UNICODE */
+        len = strlen(name) * 2;
         ptr = &usmb2->buf[4 + 0x78];
         while (*name) {
                 *ptr = *name++;
                 ptr += 2;
         }
-
+#endif /* USMB2_FEATURE_UNICODE */
+        /* name length in bytes. i.e. 2 times the number of ucs2 characters */
+        usmb2->buf[4 + 64 + 46] = len;
 
         if (usmb2_build_request(usmb2,
                                 CMD_CREATE, 0x38 + len + 8, 88,
@@ -479,11 +485,14 @@ uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh)
         ptr = &dh[16 + curr_de + 0x3c];
         u32 = le32toh(*(uint32_t *)&ptr[0]) >> 1;
         ptr += 4;
+#ifdef USMB2_FEATURE_UNICODE
+        i = utf16_to_utf8((uint16_t *)&ptr[i], u32);
+#else /* USMB2_FEATURE_UNICODE */
         for(i = 0; i < u32; i++) {
-                /* assume the world is 7-bit ASCII clean */
-                /* should be changed to usc2 -> utf8 instead of this hack */
+                /* No unicode support so assume the world is 7-bit ASCII clean */
                 ptr[i] = ptr[i * 2];
         }
+#endif /* USMB2_FEATURE_UNICODE */
         ptr[i] = 0;
         return &dh[16 + curr_de];
 }

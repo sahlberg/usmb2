@@ -9,6 +9,7 @@
  * USMB2_FEATURE_WRITE : Adds support to write to files.
  * USMB2_FEATURE_NTLM  : Adds support for NTLMv2
  * USMB2_FEATURE_OPENDIR : Adds support for opendir/readdir
+ * USMB2_FEATURE_UNICODE : Adds support for unicode share and filenames
  */
    
 /* The largest buffer we need is for SMB2_CREATE as this PDU contains the full name
