@@ -164,7 +164,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         MD4Final(&usmb2->buf[4 + 64 + 24 + 4], (MD4_CTX *)&usmb2->buf[0]);
 
         /* Compute NTOWFv2 */
-        hmac_md5(username,
+        hmac_md5((struct MD5Context *)&usmb2->buf[0],
+                 username,
                  NULL, 0,
                  domain_name, domain_name_len,
                  &usmb2->buf[4 + 64 + 24 + 4], 16, NTOWFv2);
@@ -182,7 +183,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         at_type = 4 + 64 + 24 + ntlm_response_offset;
         at_len = out_pdu_size - 4 - 64 - 24 - ntlm_response_offset;
         
-        hmac_md5(NULL,
+        hmac_md5((struct MD5Context *)&usmb2->buf[0],
+                 NULL,
                  &usmb2->buf[at_type + 8],  at_len - 8,
                  NULL, 0,
                  NTOWFv2, 16, NTProofStr);

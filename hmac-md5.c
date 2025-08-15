@@ -9,7 +9,7 @@
 #include <endian.h>
 #include <strings.h>
 
-#include "md5.h"
+#include "hmac-md5.h"
 
 unsigned char k_pad[65];
 
@@ -33,14 +33,13 @@ init_pad(unsigned char *key, unsigned int key_len, char val)
  * caddr_t         digest;              caller digest to be filled in
  */
 void
-hmac_md5(unsigned char *text0,
+hmac_md5(struct MD5Context *ctx,
+	 unsigned char *text0,
 	 unsigned char *text1, int text1_len,
 	 unsigned char *text2, int text2_len,
 	 unsigned char *key, unsigned int key_len,
 	 unsigned char *digest)
 {
-        struct MD5Context context;
-
         /*
          * the HMAC_MD5 transform looks like:
          *
@@ -54,33 +53,33 @@ hmac_md5(unsigned char *text0,
         /*
          * perform inner MD5
          */
-        md5Init(&context);                   /* init context for 1st
+        md5Init(ctx);                        /* init context for 1st
                                               * pass */
 	init_pad(key, key_len, 0x36);
-        md5Update(&context, k_pad, 64);     /* start with inner pad */
+        md5Update(ctx, k_pad, 64);           /* start with inner pad */
 	while (text0 && *text0) {
 		uint16_t c = htole16(toupper(*text0++));
-		md5Update(&context, (uint8_t *)&c, 2);
+		md5Update(ctx, (uint8_t *)&c, 2);
 	}
 	if (text1) {
-		md5Update(&context, text1, text1_len); /* then text of datagram */
+		md5Update(ctx, text1, text1_len); /* then text of datagram */
 	}
 	if (text2) {
-		md5Update(&context, text2, text2_len); /* then text of datagram */
+		md5Update(ctx, text2, text2_len); /* then text of datagram */
 	}
-        md5Finalize(&context);          /* finish up 1st pass */
-	memcpy(digest, context.input, 16);
+        md5Finalize(ctx);          /* finish up 1st pass */
+	memcpy(digest, ctx->input, 16);
         /*
          * perform outer MD5
          */
-        md5Init(&context);                   /* init context for 2nd
+        md5Init(ctx);                        /* init context for 2nd
                                               * pass */
 	init_pad(key, key_len, 0x5c);
-        md5Update(&context, k_pad, 64);     /* start with outer pad */
-        md5Update(&context, digest, 16);     /* then results of 1st
+        md5Update(ctx, k_pad, 64);           /* start with outer pad */
+        md5Update(ctx, digest, 16);          /* then results of 1st
                                               * hash */
-        md5Finalize(&context);          /* finish up 2nd pass */
-	memcpy(digest, context.input, 16);
+        md5Finalize(ctx);                    /* finish up 2nd pass */
+	memcpy(digest, ctx->input, 16);
 }
 
 #endif /* USMB2_FEATURE_NTLM */

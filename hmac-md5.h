@@ -17,6 +17,8 @@
 #include <stdint.h>
 #endif
 
+#include "md5.h"
+
 #if (__BYTE_ORDER == __BIG_ENDIAN) || defined(XBOX_360_PLATFORM)
 #  define WORDS_BIGENDIAN 1
 #endif
@@ -26,7 +28,8 @@ typedef uint32_t UWORD32;
 #endif
 
 void
-hmac_md5(unsigned char *text0, /* nul-terminated ASCII, encoed as UCS2 */
+hmac_md5(struct MD5Context *ctx, /* ctx buffer. Must be at least 4 + 16 + 64 bytes in size */
+	 unsigned char *text0, /* nul-terminated ASCII, encoed as UCS2 */
 	 unsigned char *text1, int text1_len,
 	 unsigned char *text2, int text2_len,
 	 unsigned char *key, unsigned int key_len,
