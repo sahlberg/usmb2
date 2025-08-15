@@ -34,7 +34,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
                        char *password)
 {
-        char NTOWFv2[16], z = 0, zero = 0;
+        char NTOWFv2[16], z = 0;
         uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
         uint16_t user_name_offset, user_name_len;
@@ -155,10 +155,10 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         /* The MD4 context is 64 bytes so it fits in the scratch area
         * Store NTOWFv1 at offset 4 + 64 + 24 + 4 */
         MD4Init((MD4_CTX *)&usmb2->buf[0]);
-        zero = 0;
+        z = 0;
         while (*password) {
                 MD4Update((MD4_CTX *)&usmb2->buf[0], password++, 1);
-                MD4Update((MD4_CTX *)&usmb2->buf[0], &zero, 1);
+                MD4Update((MD4_CTX *)&usmb2->buf[0], &z, 1);
         }
         MD4Final(&usmb2->buf[4 + 64 + 24 + 4], (MD4_CTX *)&usmb2->buf[0]);
 
