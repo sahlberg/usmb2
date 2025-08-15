@@ -41,9 +41,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         uint16_t user_name_offset, user_name_len;
         uint16_t ntlm_response_offset, ntlm_response_len;
         uint16_t at_type, at_len, out_pdu_size;
-        
         uint16_t target_info_len; char *target_info;
-        char *server_challenge;
 
         /* Set offset to start of ntlmssp blob */
         ntlmssp_in_offset = le16toh(*(uint16_t *)&usmb2->buf[4]) - 64;
@@ -64,8 +62,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         /* Get offset to start of Server Challenge and copy it just before where 'temp'
            ends up in the response so we can compute the hmac-md5 as linear buffer.
          */
-        server_challenge = &usmb2->buf[ntlmssp_in_offset + 24];
-        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], server_challenge, 8);
+        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], &usmb2->buf[ntlmssp_in_offset + 24], 8);
 
  
         /* SessionSetup payload, i.e. NTLMSSP will start at the buffer offset 64 + 24 */
