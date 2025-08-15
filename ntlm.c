@@ -20,6 +20,16 @@
  * within the same buffer as the reply we need data from, we must be careful so that we copy the data from their old
  * location in the reply to the new location in the to-be request before we overwrite that memory with new content.
  */
+/* When this function is called the buffer contains
+ * SessionSetup reply header: 8 bytes
+ * Incoming NTLMSSP SecurityBuffer: hundreds of bytes.
+ *
+ * We are rewriting this in place to be
+ * SPL                             : 4 bytes, to be filled in later
+ * SMB2 header                     : 64 bytes, to be filled in later
+ * SessionSetup Request header     : 24 bytes, to be filled in later
+ * Outgoing NTLMSSP SecurityBuffer : hundreds of bytes. To be filled in by this function.
+ */
 int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
                        char *password)
@@ -51,7 +61,9 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
 
         ntlm_response_offset = user_name_len + user_name_offset; /* relative to start of NTLMSSP */
 
-        /* Get offset to start of Server Challenge */
+        /* Get offset to start of Server Challenge and copy it just before where 'temp'
+           ends up in the response so we can compute the hmac-md5 as linear buffer.
+         */
         server_challenge = &usmb2->buf[ntlmssp_in_offset + 24];
         memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], server_challenge, 8);
 
@@ -144,6 +156,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
         usmb2->buf[4 + 64 + 24 + 8] = 3;
 
+        
         
         /* Generate NTOWFv1 */
         MD4Init(&ctx);
