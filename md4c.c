@@ -157,11 +157,6 @@ void MD4Final(unsigned char digest[16], MD4_CTX *context)
   MD4Update (context, bits, 8);
   /* Store state in digest */
   Encode (digest, context->state, 16);
-
-  /* Zeroize sensitive information.
-   */
-  MD4_memset ((unsigned char *)context, 0, sizeof (*context));
-
 }
 
 /* MD4 basic transformation. Transforms state based on block.
