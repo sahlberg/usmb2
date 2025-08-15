@@ -34,7 +34,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
                        char *password)
 {
-        char NTOWFv2[16], NTProofStr[16], z = 0, zero = 0;
+        char NTOWFv2[16], z = 0, zero = 0;
         uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
         uint16_t user_name_offset, user_name_len;
@@ -164,6 +164,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         MD4Final(&usmb2->buf[4 + 64 + 24 + 4], (MD4_CTX *)&usmb2->buf[0]);
 
         /* Compute NTOWFv2 */
+        /* We don't have enough scratch area to store NTOWFv2 too :-( */
         hmac_md5((struct MD5Context *)&usmb2->buf[0],
                  username,
                  NULL, 0,
@@ -187,8 +188,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                  NULL,
                  &usmb2->buf[at_type + 8],  at_len - 8,
                  NULL, 0,
-                 NTOWFv2, 16, NTProofStr);
-        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset], NTProofStr, 16);
+                 NTOWFv2, 16, &usmb2->buf[4 + 64 + 24 + ntlm_response_offset]);
 
 
         /* Fill in the first 20 bytes of the NTLMSSP buffer */
