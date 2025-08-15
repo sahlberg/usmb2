@@ -69,7 +69,7 @@ hmac_md5(unsigned char *text0,
 		md5Update(&context, text2, text2_len); /* then text of datagram */
 	}
         md5Finalize(&context);          /* finish up 1st pass */
-	memcpy(digest, context.digest, 16);
+	memcpy(digest, context.input, 16);
         /*
          * perform outer MD5
          */
@@ -80,7 +80,7 @@ hmac_md5(unsigned char *text0,
         md5Update(&context, digest, 16);     /* then results of 1st
                                               * hash */
         md5Finalize(&context);          /* finish up 2nd pass */
-	memcpy(digest, context.digest, 16);
+	memcpy(digest, context.input, 16);
 }
 
 #endif /* USMB2_FEATURE_NTLM */

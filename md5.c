@@ -135,10 +135,10 @@ void md5Finalize(struct MD5Context *ctx){
 
     // Move the result into digest (convert from little-endian)
     for(unsigned int i = 0; i < 4; ++i){
-        ctx->digest[(i * 4) + 0] = (uint8_t)((ctx->buffer[i] & 0x000000FF));
-        ctx->digest[(i * 4) + 1] = (uint8_t)((ctx->buffer[i] & 0x0000FF00) >>  8);
-        ctx->digest[(i * 4) + 2] = (uint8_t)((ctx->buffer[i] & 0x00FF0000) >> 16);
-        ctx->digest[(i * 4) + 3] = (uint8_t)((ctx->buffer[i] & 0xFF000000) >> 24);
+        ctx->input[(i * 4) + 0] = (uint8_t)((ctx->buffer[i] & 0x000000FF));
+        ctx->input[(i * 4) + 1] = (uint8_t)((ctx->buffer[i] & 0x0000FF00) >>  8);
+        ctx->input[(i * 4) + 2] = (uint8_t)((ctx->buffer[i] & 0x00FF0000) >> 16);
+        ctx->input[(i * 4) + 3] = (uint8_t)((ctx->buffer[i] & 0xFF000000) >> 24);
     }
 }
 
