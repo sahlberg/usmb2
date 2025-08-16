@@ -1,32 +1,32 @@
 USMB2
 =====
-micro-SMB2   A tiny SMB2 implementation for where size matters.
+micro-SMB2   A tiny SMB2 implementation targeting Z80 and other tiny platforms.
 
-USMB2 strives to be as small as possible.
-The default is no authentication and depending on the server allowing access as a Guest user.
-See google for how to enable Guest access for windows file servers or see below for how
-to configure samba like that.
+USMB2 strives to be as small as possible and to even be viable for 8-bitters.
 
-Optionally, it can be compiled with NTLMV2 authentication, i.e. normal SMB authentication
-by compiling with -DUSMB2_FEATURE_NTLM.
-This currently adds 2658bytes of code when compiled for x86_64.
+It is a modular build where the basic minimal configuration is to just being able to access
+and read from files as 'Guest' but where additional features can be selectivly enabled.
 
-By default it only supprots read-only access to files. Support for usmb2_prwite() and O_RDWR
-when opening files can be enabled by compiling with -DUSMB2_FEATURE_WRITE.
-This adds about 200 bytes of code size.
+-DUSMB2_FEATURE_WRITE adds support to open/create files for writing and pwrite() to write to them.
 
-Support for opendir/readdir can be enabled with -DUSMB2_FEATURE_OPENDIR.
+-DUSMB2_FEATURE_OPENDIR adds support to opendir()/readdir() so you can scan directory content.
 
-Unicode support is enabled by -DUSMB2_FEATURE_UNICODE
+-DUSMB2_FEATURE_UNICODE adds unicode support for share and file names.
+
+-DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
+basically doubles the size of the client.
+This feature currently adds 2658bytes of code when compiled for x86_64.
+
+
 
 At the time of writing, code size when compiled for for x86_64 is approximately.
 Without authentication support.
-1318 bytes: basic support  I.e. map a share, open files for reading and read from them.
-1513 bytes: basic support + file write support
+1318 bytes: basic support  I.e. map a share, open files for reading.
+1513 bytes: basic support + file write support.
 1785 bytes: basic support + file write support + opendir()/readdir() support.
 2367 bytes: basic support + file write support + opendir()/readdir() + unicode support.
 
-USMB2 context is ~550 bytes in size.
+USMB2 context is <550 bytes in size.
 Each open file handle uses 16 bytes.
 Each open directory handle uses 16 + 256 bytes.
 
@@ -46,7 +46,6 @@ Write support
 -------------
 To enable support to open files with O_RDWR an to write to files, compile
 with -DUSMB2_FEATURE_WRITE
-This adds about 200 bytes to the code size when compiled for x86_64.
 
 opendir support
 ---------------
@@ -55,7 +54,7 @@ To enable opendir()/readdir() support, compile with -DUSMB2_FEATURE_OPENDIR.
 unicode support
 ---------------
 To enable unicode support, compile with -DUSMB2_FEATURE_UNICODE.
-In not enabled all filenames better be 7-bit ASCII.
+If not enabled all filenames better be 7-bit ASCII.
 
 
 LIWP
