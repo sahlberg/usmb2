@@ -499,8 +499,7 @@ uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh)
 #endif /* USMB2_FEATURE_OPENDIR */
 
 
-/* READ */
-int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
+int usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *rbuf, uint8_t *wbuf, int count, uint64_t offset)
 {
         uint32_t u32;
         uint8_t *ptr = &usmb2->buf[4 + 64];
@@ -511,6 +510,9 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
          */
         /* struct size (16 bits) */
         *(uint32_t *)ptr = htole32(0x00000031);
+        if (cmd == CMD_WRITE) {
+                ptr[2] = 0x70;
+        }
         ptr += 4;
         
         /* length */
@@ -526,8 +528,8 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
 
         
         if (usmb2_build_request(usmb2,
-                                CMD_READ, 48 + 8, 16,
-                                NULL, 0, buf, count)) {
+                                cmd, 48 + ((cmd == CMD_READ) ? 8 : 0), 16,
+                                wbuf, count, rbuf, count)) {
                    return -1;
         }
 
@@ -537,42 +539,17 @@ int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int cou
         return u32;
 }
 
+
+int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
+{
+        return usmb2_prw(usmb2, 8, fid, buf, NULL, count, offset);
+}
 #ifdef USMB2_FEATURE_WRITE
-/* WRITE */
 int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
-        uint8_t *ptr = &usmb2->buf[4 + 64];
-
-        memset(usmb2->buf, 0, sizeof(usmb2->buf));
-        /*
-         * Command header
-         */
-        /* struct size (16 bits) + data offset == 0x70 */
-        *(uint32_t *)ptr = htole32(0x00700031);
-        ptr += 4;
-        
-        /* length */
-        *(uint32_t *)ptr = htole32(count);
-        ptr += 4;
-
-        /* offset */
-        *(uint64_t *)ptr = htole64(offset);
-        ptr += 8;
-
-        /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
-        memcpy(ptr, fid, 16);
-        
-        if (usmb2_build_request(usmb2,
-                                CMD_WRITE, 48, 16,
-                                buf, count, NULL, 0)) {
-                   return -1;
-        }
-
-        /* number of bytes returned */
-        return le32toh(*(uint32_t *)&usmb2->buf[4]);
+        return usmb2_prw(usmb2, 9, fid, NULL, buf, count, offset);
 }
 #endif /* USMB2_FEATURE_WRITE */
-
 
 /* SIZE in bytes */
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)

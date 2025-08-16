@@ -3,6 +3,7 @@
 #define _USMB2_H_
 
 #include <stdint.h>
+#include <stdlib.h>
 
 /*
  * Defines to enable features in usmb2:
@@ -48,6 +49,7 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc);
  */
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode);
 
+int usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *rbuf, uint8_t *wbuf, int count, uint64_t offset);
 int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
 int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
