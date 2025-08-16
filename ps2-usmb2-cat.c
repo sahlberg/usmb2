@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
         struct usmb2_context *usmb2;
         
 
-        //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b)); /* 10.10.10.11 */
+        //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b), "Administrator", "otto1234$$$$"); /* 192.168.124.101 */
         usmb2 = usmb2_init_context(htonl(0xc0a87c65), "Administrator", "otto1234$$$$"); /* 192.168.124.101 */
         printf("usmb2:%p\n", usmb2);
 

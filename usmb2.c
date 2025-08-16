@@ -238,9 +238,7 @@ static int create_ntlmssp_blob(struct usmb2_context *usmb2, int cmd)
 {
         uint8_t *ptr = &usmb2->buf[4 + 64 + 12];
 
-        ptr = &usmb2->buf[4 + 64 + 24];
-        memcpy(ptr, "NTLMSSP", 7);
-        ptr += 8;
+        ptr = &usmb2->buf[4 + 64 + 24 + 8];
         if (cmd == 1) {
                 /* NTLMSSP_NEGOTIATE */
                 *ptr = cmd;
@@ -284,6 +282,7 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
         memset(usmb2->buf, 0, sizeof(usmb2->buf));
         len = create_ntlmssp_blob(usmb2, cmd);
 #endif /* USMB2_FEATURE_NTLM */
+        memcpy(&usmb2->buf[4 + 64 + 24], "NTLMSSP", 8);
 
         /*
          * Command header

@@ -9,7 +9,7 @@ to configure samba like that.
 
 Optionally, it can be compiled with NTLMV2 authentication, i.e. normal SMB authentication
 by compiling with -DUSMB2_FEATURE_NTLM.
-This however adds ~2800bytes of code when compiled for x86_64.
+This currently adds 2658bytes of code when compiled for x86_64.
 
 By default it only supprots read-only access to files. Support for usmb2_prwite() and O_RDWR
 when opening files can be enabled by compiling with -DUSMB2_FEATURE_WRITE.
@@ -21,10 +21,10 @@ Unicode support is enabled by -DUSMB2_FEATURE_UNICODE
 
 At the time of writing, code size when compiled for for x86_64 is approximately.
 Without authentication support.
-1330 bytes: basic support  I.e. map a share, open files for reading and read from them.
-1532 bytes: basic support + file write support
-1793 bytes: basic support + file write support + opendir()/readdir() support.
-2398 bytes: basic support + file write support + opendir()/readdir() + unicode support.
+1318 bytes: basic support  I.e. map a share, open files for reading and read from them.
+1513 bytes: basic support + file write support
+1785 bytes: basic support + file write support + opendir()/readdir() support.
+2367 bytes: basic support + file write support + opendir()/readdir() + unicode support.
 
 USMB2 context is ~550 bytes in size.
 Each open file handle uses 16 bytes.

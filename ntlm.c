@@ -191,7 +191,6 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
 
 
         /* Fill in the first 20 bytes of the NTLMSSP buffer */
-        memcpy(&usmb2->buf[4 + 64 + 24], "NTLMSSP", 8);
         memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
         usmb2->buf[4 + 64 + 24 + 8] = 3;
         
