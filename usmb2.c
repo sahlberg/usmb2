@@ -299,7 +299,7 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
         status = usmb2_build_request(usmb2,
                                      CMD_SESSION_SETUP, (24 + len + 7) & 0xfff8, 64,
                                      NULL, 0, NULL, 0);
-        if (cmd == 1 && status == STATUS_MORE_PROCESSING) {
+        if (status == STATUS_MORE_PROCESSING) {
                 cmd = 3;
                 goto again;
         }
