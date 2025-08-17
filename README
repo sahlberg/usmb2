@@ -13,6 +13,8 @@ and read from files as 'Guest' but where additional features can be selectivly e
 
 -DUSMB2_FEATURE_UNICODE adds unicode support for share and file names.
 
+-DUSMB2_FEATURE_CLOSE add support for SMB2_CLOSE.
+
 -DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
 basically doubles the size of the client.
 This feature currently adds 2658bytes of code when compiled for x86_64.
@@ -55,6 +57,16 @@ unicode support
 ---------------
 To enable unicode support, compile with -DUSMB2_FEATURE_UNICODE.
 If not enabled all filenames better be 7-bit ASCII.
+
+close support
+-------------
+Support for SMB2_CLOSE and closing file handles also on the server is enabled with
+-DUSMB2_FEATURE_CLOSE.
+By default usmb2 will just free the handle and leak the open handle server-side.
+This option implements the SMB2_CLOSE command to close it also on the server.
+This results in 98 additional bytes of program code when compiled on x86_64.
+Short-lived applications typically would not need this feature as the handles will
+be reaped server-side anyway when the session is terminated.
 
 
 LIWP

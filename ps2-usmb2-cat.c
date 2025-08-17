@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
         while(de = usmb2_readdir(usmb2, dh)) {
                 printf("%s %12lld %s\n", (de[0x38]&0x10)?"DIRECTORY ":"FILE      ", le64toh(*(uint64_t *)&de[0x28]), &de[0x40]);
         }                
-        usmb2_close(dh);
+        usmb2_close(usmb2, dh);
         
         /* Open the file */
         fh = usmb2_open(usmb2, "hello.txt", O_RDONLY);
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
         usmb2_pread(usmb2, fh, buf, 30, 2);
         printf("BUF: %s\n", buf);
         printf("Size: %d bytes\n", usmb2_size(usmb2, fh));
-        usmb2_close(fh);
+        usmb2_close(usmb2, fh);
         
 	return rc;
 }
