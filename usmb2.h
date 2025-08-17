@@ -3,7 +3,6 @@
 #define _USMB2_H_
 
 #include <stdint.h>
-#include <stdlib.h>
 
 /*
  * Defines to enable features in usmb2:

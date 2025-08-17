@@ -3,7 +3,11 @@
 
 #ifdef USMB2_FEATURE_NTLM
 
+#if defined(_IOP)
+#include "ps2iop-compat.h"
+#else
 #include <endian.h>
+#endif
 
 #include "usmb2.h"
 #include "ntlm.h"

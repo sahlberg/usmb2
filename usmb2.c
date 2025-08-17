@@ -8,17 +8,21 @@
 */
 #define _GNU_SOURCE
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
+#if defined(_IOP)
+#include "ps2iop-compat.h"
+#else
+#include <arpa/inet.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
+#endif
+#include <string.h>
+#include <sys/types.h>
 
 #include "usmb2.h"
 #ifdef USMB2_FEATURE_NTLM

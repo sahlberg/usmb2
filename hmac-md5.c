@@ -6,8 +6,12 @@
 ** Function: hmac_md5
 */
 #include <ctype.h>
+#if defined(_IOP)
+#include "ps2iop-compat.h"
+#else
 #include <endian.h>
-#include <strings.h>
+#endif
+#include <string.h>
 
 #include "hmac-md5.h"
 
