@@ -248,6 +248,7 @@ static int create_ntlmssp_blob(struct usmb2_context *usmb2, int cmd)
                 
                 return 32;
         }
+#ifndef USMB2_FEATURE_NTLM
         if (cmd == 3) {
                 /* NTLMSSP_AUTH */
                 *ptr = cmd;
@@ -257,6 +258,7 @@ static int create_ntlmssp_blob(struct usmb2_context *usmb2, int cmd)
                 
                 return 72;
         }
+#endif /* !USMB2_FEATURE_NTLM */
         return -1;
 }
 
