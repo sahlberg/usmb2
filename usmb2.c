@@ -32,6 +32,7 @@
 #define CMD_SESSION_SETUP       1
 #define CMD_TREE_CONNECT        3
 #define CMD_CREATE              5
+#define CMD_CLOSE               6
 #define CMD_READ                8
 #define CMD_WRITE               9
 #define CMD_QUERYDIR           14
@@ -540,6 +541,33 @@ int usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *rbuf,
 
         return u32;
 }
+
+#ifdef USMB2_FEATURE_CLOSE
+int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid)
+{
+        uint8_t *ptr = &usmb2->buf[4 + 64];
+
+        memset(usmb2->buf, 0, sizeof(usmb2->buf));
+        /*
+         * Command header
+         */
+        /* struct size (16 bits) */
+        *(uint32_t *)ptr = htole32(0x00010018);
+        ptr += 8;
+        
+        /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
+        memcpy(ptr, fid, 16);
+
+        if (usmb2_build_request(usmb2,
+                                CMD_CLOSE, 24, 60,
+                                NULL, 0, NULL, 0)) {
+                   return -1;
+        }
+
+        free(fid);
+        return 0;
+}
+#endif /* USMB2_FEATURE_CLOSE */
 
 
 int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)

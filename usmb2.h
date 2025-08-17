@@ -57,7 +57,12 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
 uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name);
 uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh);
 
-#define usmb2_close free
-#define usmb2_closedir free
+#ifdef USMB2_FEATURE_CLOSE
+int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid);
+#define usmb2_closedir(u, f) usmb2_close(u, f)
+#else /* USMB2_FEATURE_CLOSE */
+#define usmb2_close(u,f) free(f)
+#define usmb2_closedir(u,f) free(f)
+#endif /* USMB2_FEATURE_CLOSE */
 
 #endif /* !_USMB2_H_ */
