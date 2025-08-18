@@ -1,10 +1,8 @@
 #ifndef PS2IOP_COMPAT_H
 #define PS2IOP_COMPAT_H
 
-
 #include <ps2ip.h>
 #include <stdint.h>
-
 
 #ifndef _LITTLE_ENDIAN
 #define _LITTLE_ENDIAN LITTLE_ENDIAN
@@ -26,13 +24,12 @@
 #define htole64(x) (x)
 #define le64toh(x) (x)
 
-#define write(a,b,c) lwip_send(a,b,c,MSG_DONTWAIT)
-#define read(a,b,c) lwip_recv(a,b,c,MSG_DONTWAIT)
+#define write(a, b, c) lwip_send(a, b, c, 0)
+#define read(a, b, c) lwip_recv(a, b, c, 0)
 
-void *malloc(int size);
-void free(void *ptr);
-void *calloc(size_t nmemb, size_t size);
+void* malloc(int size);
+void free(void* ptr);
+void* calloc(size_t nmemb, size_t size);
 char* strdup(const char* s);
-
 
 #endif
