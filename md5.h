@@ -4,10 +4,8 @@
 #ifndef MD5_H
 #define MD5_H
 
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stddef.h>
 
 struct MD5Context {
     uint32_t size;        // Size of input in bytes
