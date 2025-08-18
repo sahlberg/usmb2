@@ -3,11 +3,16 @@ I_CpuSuspendIntr
 I_CpuResumeIntr
 intrman_IMPORTS_end
 
+ioman_IMPORTS_start
+I_AddDrv
+I_DelDrv
+ioman_IMPORTS_end
+
 ps2ip_IMPORTS_start
+I_lwip_connect
 I_lwip_recv
 I_lwip_send
 I_lwip_socket
-I_lwip_connect
 ps2ip_IMPORTS_end
 
 stdio_IMPORTS_start
@@ -15,11 +20,12 @@ I_printf
 stdio_IMPORTS_end
 
 sysclib_IMPORTS_start
+I_toupper
 I_memcpy
 I_memmove
 I_memset
 I_strlen
-I_toupper
+I_strchr
 sysclib_IMPORTS_end
 
 sysmem_IMPORTS_start

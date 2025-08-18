@@ -1,6 +1,6 @@
-IOP_BIN  = ps2-usmb2-cat.irx
-IOP_OBJS = ps2-usmb2-cat.o ps2iop-compat.o usmb2.o ntlm.o md4c.o hmac-md5.o md5.o imports.o
-IOP_CFLAGS = -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM
+IOP_BIN  = usmb2.irx
+IOP_OBJS = ps2iop-compat.o usmb2.o ntlm.o md4c.o hmac-md5.o md5.o imports.o
+IOP_CFLAGS = -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_WRITE
 
 all: $(IOP_BIN)
 
