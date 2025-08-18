@@ -21,14 +21,14 @@ This feature currently adds 2658bytes of code when compiled for x86_64.
 
 
 
-At the time of writing, code size when compiled for for x86_64 is approximately.
-Without authentication support.
+At the time of writing, code size when compiled for for x86_64 is approximately
+(without authentication support):
 1318 bytes: basic support  I.e. map a share, open files for reading.
 1513 bytes: basic support + file write support.
 1785 bytes: basic support + file write support + opendir()/readdir() support.
 2367 bytes: basic support + file write support + opendir()/readdir() + unicode support.
 
-USMB2 context is <550 bytes in size.
+USMB2 context is 560 bytes in size on x86_64.
 Each open file handle uses 16 bytes.
 Each open directory handle uses 16 + 256 bytes.
 

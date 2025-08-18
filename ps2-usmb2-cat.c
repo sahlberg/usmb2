@@ -32,10 +32,9 @@ int main(int argc, char *argv[])
         int rc = 0;
         struct usmb2_context *usmb2;
         
-
-        //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b), "Administrator", "otto1234$$$$"); /* 192.168.124.101 */
+        //usmb2 = usmb2_init_context(htonl(0x0a0a0a0b), "Administrator", "otto1234$$$$"); // 10.10.10.11
         usmb2 = usmb2_init_context(htonl(0xc0a87c65), "Administrator", "otto1234$$$$"); /* 192.168.124.101 */
-        printf("usmb2:%p\n", usmb2);
+        printf("usmb2:%p (%ld bytes)\n", usmb2, sizeof(*usmb2));
 
         /* Map the share */
         //if (usmb2_treeconnect(usmb2, "\\\\10.10.10.11\\SNAP-1")) {
@@ -55,8 +54,8 @@ int main(int argc, char *argv[])
          * except filename is returned as nul-terminated 7-bit ASCII string.
          * All fields are in little-endian.
          */
-        while(de = usmb2_readdir(usmb2, dh)) {
-                printf("%s %12lld %s\n", (de[0x38]&0x10)?"DIRECTORY ":"FILE      ", le64toh(*(uint64_t *)&de[0x28]), &de[0x40]);
+        while((de = usmb2_readdir(usmb2, dh))) {
+                printf("%s %12lld %s\n", (de[0x38]&0x10)?"DIRECTORY ":"FILE      ", (long long)le64toh(*(uint64_t *)&de[0x28]), &de[0x40]);
         }                
         usmb2_close(usmb2, dh);
         
