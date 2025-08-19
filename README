@@ -36,7 +36,7 @@ Each open directory handle uses 16 + 256 bytes.
 Modules
 =======
 
-USMB2 is modular where you cna pick what features you want.
+USMB2 is modular where you can pick what features you want.
 By by default there is no authentication and no write support.
 
 Authentication
