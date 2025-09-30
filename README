@@ -69,7 +69,7 @@ Short-lived applications typically would not need this feature as the handles wi
 be reaped server-side anyway when the session is terminated.
 
 
-LIWP
+LWIP
 ====
 The code in usmb2.c uses read()/write() to access the socket. Platforms that use special function
 to do this may need changes.
