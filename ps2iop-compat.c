@@ -40,20 +40,6 @@ static int SMB2_open(iop_file_t* f, const char* filename, int flags, int mode)
 {
     printf("%s(%s)\n", __FUNCTION__, filename);
 
-    if (usmb2 == NULL) {
-        usmb2 = usmb2_init_context(htonl(0xc0a8016e), "username", "password"); /* 192.168.1.110 */
-
-        if (usmb2 == NULL) {
-            printf("%s: failed to init context\n", __FUNCTION__);
-            return -ENODEV;
-        }
-
-        if (usmb2_treeconnect(usmb2, "\\\\192.168.1.110\\opl")) {
-            printf("%s: failed to map share\n", __FUNCTION__);
-            return -ENODEV;
-        }
-    }
-
     f->privdata = usmb2_open(usmb2, filename, O_RDONLY);
     if (f->privdata == NULL) {
         printf("%s: failed to open file\n", __FUNCTION__);
