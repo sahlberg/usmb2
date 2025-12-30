@@ -121,7 +121,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          */
         memcpy(&usmb2->buf[4 + 64 + 24 + domain_name_offset], domain_name, domain_name_len);
         domain_name = &usmb2->buf[4 + 64 + 24 + domain_name_offset];
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 28] = htole32(domain_name_len << 16 | domain_name_len);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 28] = htole16(domain_name_len);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 30] = htole16(domain_name_len);
         *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 32] = htole32(domain_name_offset);
 
         /*
@@ -139,7 +140,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
                 usmb2->buf[4 + 64 + 24 + user_name_offset + at_type++] = username[at_type >> 1];
                 usmb2->buf[4 + 64 + 24 + user_name_offset + at_type++] = 0;
         }
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 36] = htole32(user_name_len << 16 | user_name_len);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 36] = htole16(user_name_len);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 38] = htole16(user_name_len);
         *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 40] = htole32(user_name_offset);
         /*
          * Host name and remaining fields
