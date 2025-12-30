@@ -128,7 +128,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          * NT Response
          */
         at_type = out_pdu_size - 4 - 64 - 24 - ntlm_response_offset;
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 20] = htole32(at_type << 16 | at_type);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 20] = htole16(at_type);
+        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 22] = htole16(at_type);
         *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 24] = htole32(ntlm_response_offset);
           
         /*
