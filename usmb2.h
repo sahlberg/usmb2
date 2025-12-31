@@ -23,8 +23,8 @@
 
 struct usmb2_context {
         int fd;
-        char *username;
-        char *password;
+        char username[32];
+        char password[32];
         uint64_t message_id;
         uint64_t session_id;
         uint32_t tree_id;

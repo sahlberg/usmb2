@@ -15,10 +15,40 @@
 #if defined(_IOP)
 #include "ps2iop-compat.h"
 #else
+
+#if !defined(Z80)
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#else
+#define htole16(x) (x)
+#define htole32(x) (x)
+#define htole64(x) (x)
+#define le32toh(x) (x)
+#define le64toh(x) (x)
+#define htons(x) ((x<<8)|(x>>8))
+static uint32_t htonl(uint32_t val)
+{
+        uint32_t tmp = 0;
+        uint8_t *ptr = (uint8_t *)&val;
+
+        tmp  = *ptr++;
+        tmp <<= 8;
+        tmp |= *ptr++;
+        tmp <<= 8;
+        tmp |= *ptr++;
+        tmp <<= 8;
+        tmp |= *ptr++;
+
+        return tmp;
+}
+#define ntohl htonl
+#include "ip.h"
+#include "tcp.h"
+#include "slip.h"
+#endif
+
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #endif
 #include <string.h>
@@ -48,8 +78,43 @@
 /* Amount of QUERY_DIR payload to store in the directory handle */
 #define MAX_DIR_SIZE 256
 
+
+#if defined(Z80)
+static int recv_pos = 0;
+
+static int recv_reply_from_socket(uint32_t wanted_mid)
+{
+        int rc;
+        uint8_t *ptr;
+        uint32_t mid;
+
+        recv_pos = 0;
+ again:
+        rc = tcp_recv();
+        if (rc < 0) {
+                return -1;
+        }
+        if (rc == 0) {
+                goto again;
+        }
+        ptr = tcp_buffer();
+        memcpy(&mid, &ptr[28], 4);
+        mid = htole32(mid);
+        if (mid != wanted_mid) {
+                goto again;
+        }
+
+        return 0;
+}
+#endif
+
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
+#if defined(Z80)
+        int rc;
+
+        rc = tcp_send(buf, len);
+#else
         int count;
         
         while (len) {
@@ -60,11 +125,21 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
                 len -= count;
                 buf += count;
         }
+#endif
         return 0;
 }
 
+
+
 static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 { 
+#if defined(Z80)
+        uint8_t *ptr;
+        ptr = tcp_buffer();
+
+        memcpy(buf, &ptr[recv_pos], len);
+        recv_pos += len;
+#else
         int count;
         
         while (len) {
@@ -75,15 +150,16 @@ static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
                 len -= count;
                 buf += count;
         }
+#endif
         return 0;
 }
         
-static int usmb2_build_request(struct usmb2_context *usmb2,
+static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
                                int command, int commandoutcount, int commandincount,
                                uint8_t *outdata, int outdatacount,
                                uint8_t *indata, int indatacount)
 {
-        uint32_t spl;
+        uint32_t spl, current_mid;
         uint8_t *buf = &usmb2->buf[0];
         uint32_t status;
 
@@ -91,7 +167,7 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
          * SPL
          */
         spl = 64 + commandoutcount + outdatacount;
-        *(uint32_t *)&usmb2->buf[0] = htobe32(spl);
+        *(uint32_t *)&usmb2->buf[0] = htonl(spl);
         buf += 4;
         
         /*
@@ -118,7 +194,8 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
         buf += 12; /* flags and next command are both 0, 8 bytes */
 
         /* message id */
-        *(uint64_t *)buf = htole64(usmb2->message_id++);
+        current_mid = usmb2->message_id++;
+        *(uint64_t *)buf = htole64(current_mid);
         buf += 12; /* 4 extra reserved bytes */
 
         /* tree id */
@@ -148,10 +225,14 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
          * Write padding
          */
         if (spl) {
-                write_to_socket(usmb2, &usmb2->buf[0], spl);
+                write_to_socket(usmb2, &usmb2->buf[0], (int)spl);
         }
 
-        
+#if defined(Z80)
+        /* Receive the full request from the TCP layer to a buffer */
+        recv_reply_from_socket(current_mid);
+#endif
+
         /*
          * Read SPL, SMB2 header and command reply header (and file info blob) from socket
          */
@@ -203,7 +284,7 @@ static int usmb2_build_request(struct usmb2_context *usmb2,
         /*
          * Read padding
          */
-        read_from_socket(usmb2, &usmb2->buf[commandincount], spl);
+        read_from_socket(usmb2, &usmb2->buf[commandincount], (int)spl);
 
         return status;
 }
@@ -302,7 +383,7 @@ int usmb2_sessionsetup(struct usmb2_context *usmb2)
         *ptr = 0x58;
         ptr += 2;
         *(uint16_t *)ptr = htole16(len);
-        
+
         status = usmb2_build_request(usmb2,
                                      CMD_SESSION_SETUP, (24 + len + 7) & 0xfff8, 64,
                                      NULL, 0, NULL, 0);
@@ -356,6 +437,9 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 {
         int len;
         uint8_t *ptr, da, di, co, fa;
+#if defined(Z80)
+        uint8_t fid0[16];
+#endif
 
         da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
         di = 0x01; /* create disposition: open  if file exist open it, else fail */
@@ -419,7 +503,11 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
                 ptr = calloc(1, 16 + MAX_DIR_SIZE);
         else
 #endif /* USMB2_FEATURE_OPENDIR */
+#if defined(Z80)
+        ptr = &fid0[0];
+#else
         ptr = malloc(16);
+#endif
         if (ptr) {
                 memcpy(ptr, &usmb2->buf[64], 16);
         }
@@ -492,7 +580,7 @@ uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh)
         u32 = le32toh(*(uint32_t *)&ptr[0]) >> 1;
         ptr += 4;
 #ifdef USMB2_FEATURE_UNICODE
-        i = utf16_to_utf8((uint16_t *)&ptr[i], u32);
+        i = utf16_to_utf8((uint16_t *)&ptr[0], u32);
 #else /* USMB2_FEATURE_UNICODE */
         for(i = 0; i < u32; i++) {
                 /* No unicode support so assume the world is 7-bit ASCII clean */
@@ -568,7 +656,6 @@ int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid)
                    return -1;
         }
 
-        free(fid);
         return 0;
 }
 #endif /* USMB2_FEATURE_CLOSE */
@@ -620,6 +707,13 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
 
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password)
 {
+#if defined(Z80)
+        struct usmb2_context *usmb2;
+        static struct usmb2_context u2;
+        
+        usmb2 = &u2;
+        memset(usmb2, 0, sizeof(usmb2));
+#else
         struct usmb2_context *usmb2;
         struct sockaddr_in sin;
         int socksize = sizeof(struct sockaddr_in);
@@ -629,8 +723,6 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
                 return NULL;
         }
 
-        usmb2->username = strdup(username);
-        usmb2->password = strdup(password);
         usmb2->fd = socket(AF_INET, SOCK_STREAM, 0);
 
         sin.sin_family = AF_INET;
@@ -643,14 +735,22 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
                 free(usmb2);
                 return NULL;
         }
+#endif
+
+        strcpy(usmb2->username, username);
+        strcpy(usmb2->password, password);
 
         if (usmb2_negotiateprotocol(usmb2)) {
+#if !defined(Z80)
                 free(usmb2);
+#endif
                 return NULL;
         }
 
         if (usmb2_sessionsetup(usmb2)) {
+#if !defined(Z80)
                 free(usmb2);
+#endif
                 return NULL;
         }
         
