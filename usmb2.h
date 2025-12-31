@@ -4,6 +4,10 @@
 
 #include <stdint.h>
 
+#if defined(Z80)
+#define O_DIRECTORY 0x1000
+#endif
+
 /*
  * Defines to enable features in usmb2:
  * USMB2_FEATURE_WRITE : Adds support to write to files.

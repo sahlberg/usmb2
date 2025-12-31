@@ -39,7 +39,7 @@ int main(void)
         printf("\n");
 
         slip_init(RS_BAUD_9600, RS_PAR_NONE);
-        rc = tcp_connect(src, 74, dst, 445);
+        rc = tcp_connect(src, 116, dst, 445);
         printf("rc:%d\n", rc);
 
         usmb2 = usmb2_init_context(0x0b0a0a0a, "sahlberg", "otto1234"); /* 10.10.10.11 */
@@ -53,7 +53,7 @@ int main(void)
 		printf("usmb2_open failed\n");
 		return 0;
         }
-        usmb2_pread(usmb2, fh, buf, 256, 0);
+        usmb2_pread(usmb2, fh, buf, 100, 0);
         usmb2_close(usmb2, fh);
 
         return 0;

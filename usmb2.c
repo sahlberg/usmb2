@@ -119,6 +119,10 @@ static int send_rqst_to_socket(void)
         
         return 0;
 }
+
+uint8_t fid0[16];
+uint8_t dir0[16 + MAX_DIR_SIZE];
+
 #endif
 
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
@@ -454,9 +458,6 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
 {
         int len;
         uint8_t *ptr, da, di, co, fa;
-#if defined(Z80)
-        uint8_t fid0[16];
-#endif
 
         da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
         di = 0x01; /* create disposition: open  if file exist open it, else fail */
@@ -515,15 +516,18 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
                    return NULL;
         }
 
-#ifdef USMB2_FEATURE_OPENDIR
-        if (mode & O_DIRECTORY)
-                ptr = calloc(1, 16 + MAX_DIR_SIZE);
-        else
-#endif /* USMB2_FEATURE_OPENDIR */
 #if defined(Z80)
-        ptr = &fid0[0];
+        if (mode & O_DIRECTORY) {
+                ptr = &dir0[0];
+        } else {
+                ptr = &fid0[0];
+        }
 #else
-        ptr = malloc(16);
+        if (mode & O_DIRECTORY) {
+                ptr = calloc(1, 16 + MAX_DIR_SIZE);
+        } else {
+                ptr = malloc(16);
+        }
 #endif
         if (ptr) {
                 memcpy(ptr, &usmb2->buf[64], 16);

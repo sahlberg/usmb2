@@ -18,4 +18,4 @@ ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ -c $^ -I.. -DUSMB2_FEATURE_CLOSE -DUSMB2_FEATURE_NTLM -DZ80
 
 clean:
-	$(RM) *.o ping.bin
+	$(RM) *.o ../*.o *.tap *.bin
