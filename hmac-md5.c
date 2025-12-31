@@ -15,6 +15,10 @@
 
 #include "hmac-md5.h"
 
+#if defined(Z80)
+#define htole16(x) (x)
+#endif
+
 unsigned char k_pad[65];
 
 static void
