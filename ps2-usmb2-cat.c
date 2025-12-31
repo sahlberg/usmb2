@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         usmb2_close(usmb2, dh);
         
         /* Open the file */
-        fh = usmb2_open(usmb2, "hello.txt", O_RDONLY);
+        fh = usmb2_open(usmb2, "client-specs.txt", O_RDONLY);
         if (fh == NULL) {
 		printf("usmb2_open failed\n");
 		return -1;

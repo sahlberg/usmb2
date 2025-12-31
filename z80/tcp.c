@@ -52,7 +52,7 @@ int tcp_send(uint8_t *data, int len)
         uint32_t u32;
 
         memset(ptr, 0, 24);
-        if (len) {
+        if (data) {
                 memcpy(ptr + 24, data, len);
         }
         cs = htons(tctx.src_port);

@@ -106,14 +106,29 @@ static int recv_reply_from_socket(uint32_t wanted_mid)
 
         return 0;
 }
+
+
+static int send_pos = 0;
+
+static int send_rqst_to_socket(void)
+{
+        int rc;
+
+        rc = tcp_send(NULL, send_pos);
+        send_pos = 0;
+        
+        return 0;
+}
 #endif
 
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
 #if defined(Z80)
-        int rc;
+        uint8_t *ptr;
+        ptr = ip_buffer(20 + 24); /* we always write a 24 byte tcp header */
 
-        rc = tcp_send(buf, len);
+        memcpy(&ptr[send_pos], buf, len);
+        send_pos += len;
 #else
         int count;
         
@@ -229,6 +244,8 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
         }
 
 #if defined(Z80)
+        send_rqst_to_socket();
+        
         /* Receive the full request from the TCP layer to a buffer */
         recv_reply_from_socket(current_mid);
 #endif
