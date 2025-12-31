@@ -9,6 +9,13 @@
 #include <endian.h>
 #endif
 
+#if defined(Z80)
+#define le16toh(x) (x)
+#define le32toh(x) (x)
+#define htole16(x) (x)
+#define htole32(x) (x)
+#endif
+
 #include "usmb2.h"
 #include "ntlm.h"
 #include "md4.h"
@@ -55,7 +62,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
 
         /* Grab Target/Domain name from the challenge buffer */
         domain_name_len = le16toh(*(uint16_t *)&usmb2->buf[offset]);
-        domain_name = &usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[offset + 4])];
+        domain_name = (char *)&usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[offset + 4])];
         domain_name_offset = 72; /* This is where AUTH ends on pre-2003 */
         user_name_len = strlen(username) * 2;
         user_name_offset = domain_name_len + domain_name_offset;
@@ -77,7 +84,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          * In the AUTH we are building the LmChallengeResponse data often ends up laid
          * your starting at offset ~110 and the AvPairs are laid out another 16 + 28 bytes into that.
          */
-        target_info = &usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[ntlmssp_in_offset + 44])];
+        target_info = (char *)&usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[ntlmssp_in_offset + 44])];
 
         /* Copy everything except the trailing EndOfList */
 
@@ -120,7 +127,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          * Domain name. Copy to proper offset in the output  buffer and update length/offset.
          */
         memcpy(&usmb2->buf[4 + 64 + 24 + domain_name_offset], domain_name, domain_name_len);
-        domain_name = &usmb2->buf[4 + 64 + 24 + domain_name_offset];
+        domain_name = (char *)&usmb2->buf[4 + 64 + 24 + domain_name_offset];
         *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 28] = htole16(domain_name_len);
         *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 30] = htole16(domain_name_len);
         *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 32] = htole32(domain_name_offset);
