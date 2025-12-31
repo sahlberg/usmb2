@@ -58,7 +58,7 @@ uint32_t rotateLeft(uint32_t x, uint8_t n){
  * Initialize a context
  */
 void md5Init(struct MD5Context *ctx){
-    ctx->size = (uint64_t)0;
+    ctx->size = 0;
 
     ctx->buffer[0] = (uint32_t)A;
     ctx->buffer[1] = (uint32_t)B;
@@ -75,7 +75,7 @@ void md5Init(struct MD5Context *ctx){
 void md5Update(struct MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
     uint32_t input[16];
     unsigned int offset = ctx->size % 64;
-    ctx->size += (uint64_t)input_len;
+    ctx->size += input_len;
 
     // Copy each byte in input_buffer into the next space in our context input
     for(unsigned int i = 0; i < input_len; ++i){
@@ -118,7 +118,7 @@ void md5Finalize(struct MD5Context *ctx){
         i--;
 	pad = 0;
     }
-    ctx->size -= (uint64_t)padding_length;
+    ctx->size -= padding_length;
     
     // Do a final update (internal to this function)
     // Last two 32-bit words are the two halves of the size (converted from bytes to bits)
