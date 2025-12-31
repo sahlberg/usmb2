@@ -1,0 +1,23 @@
+USMB2 for Z80
+-------------
+A tiny TCP/IP implementation for Z80 as well as an example
+application that uses USMB2 to access a network share.
+
+The makefile builds a tap file that can be loaded into
+a sinclair spectrum that has an interface1 with RS-232.
+
+The stack uses a slightly modified version of the SLIP
+protocol to talk to a daemon that then bridges the packets
+to a tun0 network on linux.
+The difference to normal SLIP is that I have to escape also
+bytes with the value 0x00.   It is not clear if this is a bug
+in my environment or an issue with the rs232 library in z88dk.
+(the rs232 code is VERY untested)
+
+
+slip-tun.c is an example bridge that can bridge between the
+fifo's for rx and tx for fuse and tun0.
+It is an example, please modify or clean up before using.
+
+See ../speccy-mapping-a-share.pcapng for an example of
+a spectrum 48k + interface1 accessinf a network share.

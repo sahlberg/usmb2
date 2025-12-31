@@ -1,0 +1,40 @@
+/* -*-  mode:c; tab-width:8; c-basic-offset:8; indent-tabs-mode:nil;  -*- */
+#include <arch/zx.h>
+#include <stdio.h>
+#include <rs232.h>
+
+#include "slip.h"
+#include "ip.h"
+#include "icmp.h"
+
+int main(void)
+{
+        int rc;
+        uint32_t src = 0x020200c0; /* 192.0.2.2 */
+        uint32_t dst;
+        int ipi[4];
+        uint8_t *ip;
+
+        zx_cls();
+        ip = (uint8_t *)&src;
+        printf("My IP address: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        
+        printf("IP address to ping: ");fflush(stdout);
+        scanf("%d.%d.%d.%d\n", &ipi[0], &ipi[1], &ipi[2], &ipi[3]);
+        ip = (uint8_t *)&dst;
+        ip[0] = ipi[0];
+        ip[1] = ipi[1];
+        ip[2] = ipi[2];
+        ip[3] = ipi[3];
+        printf("\n");
+
+        slip_init(RS_BAUD_9600, RS_PAR_NONE);
+        rc = icmp_echo_request(src, dst);
+        if (rc == 0) {
+                printf("%d.%d.%d.%d is alive\n", ip[0], ip[1], ip[2], ip[3]);
+        } else {
+                printf("No response from %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        }
+        return 0;
+}
+

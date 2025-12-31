@@ -1,0 +1,60 @@
+/* -*-  mode:c; tab-width:8; c-basic-offset:8; indent-tabs-mode:nil;  -*- */
+#include <arch/zx.h>
+#include <stdio.h>
+#include <rs232.h>
+
+#include "slip.h"
+#include "ip.h"
+#include "tcp.h"
+
+#include "usmb2.h"
+
+char buf[256];
+
+int main(void)
+{
+        int rc;
+        uint32_t src = 0x020200c0; /* 192.0.2.2 */
+        uint32_t dst;
+        int ipi[4];
+        uint8_t *ip;
+        struct usmb2_context *usmb2;
+        uint8_t *fh;
+
+        zx_cls();
+        ip = (uint8_t *)&src;
+        printf("My IP address: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        
+        printf("Server IP: ");fflush(stdout);
+#if 0        
+        scanf("%d.%d.%d.%d\n", &ipi[0], &ipi[1], &ipi[2], &ipi[3]);
+        ip = (uint8_t *)&dst;
+        ip[0] = ipi[0];
+        ip[1] = ipi[1];
+        ip[2] = ipi[2];
+        ip[3] = ipi[3];
+#else
+        dst = 0x0b0a0a0a;
+#endif
+        printf("\n");
+
+        slip_init(RS_BAUD_9600, RS_PAR_NONE);
+        rc = tcp_connect(src, 66, dst, 445);
+        printf("rc:%d\n", rc);
+
+        usmb2 = usmb2_init_context(0x0b0a0a0a, "sahlberg", "otto1234"); /* 10.10.10.11 */
+        if (usmb2 == NULL) {
+                printf("failed to connect to server\n");
+                return 0;
+        }
+        usmb2_treeconnect(usmb2, "\\\\10.10.10.11\\SNAP-1");
+        fh = usmb2_open(usmb2, "client-specs.txt", O_RDONLY);
+        if (fh == NULL) {
+		printf("usmb2_open failed\n");
+		return 0;
+        }
+        usmb2_pread(usmb2, fh, buf, 256, 0);
+        usmb2_close(usmb2, fh);
+
+        return 0;
+}
