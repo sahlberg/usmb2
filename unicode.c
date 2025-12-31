@@ -15,6 +15,13 @@
 
 #include "unicode.h"
 
+#if defined(Z80)
+#define le16toh(x) (x)
+#define le32toh(x) (x)
+#define htole16(x) (x)
+#define htole32(x) (x)
+#endif
+
 /* Count number of leading 1 bits in the char */
 static int
 l1(char c)
@@ -105,16 +112,20 @@ validate_utf8_cp(const char **utf8, uint16_t *ret)
 int utf8_to_utf16(const char *utf8, uint16_t *utf16)
 {
         int i = 0;
+        uint16_t u16;
 
         while (1) {
                 switch(validate_utf8_cp(&utf8, utf16)) {
                 case 1:
-                    *utf16++ = htole16(*utf16);
+                    u16 = htole16(*utf16);
+                    *utf16++ = u16;
                     i += 1;
                     break;
                 case 2:
-                    *utf16++ = htole16(*utf16);
-                    *utf16++ = htole16(*utf16);
+                    u16 = htole16(*utf16);
+                    *utf16++ = u16;
+                    u16 = htole16(*utf16);
+                    *utf16++ = u16;
                     i += 2;
                     break;
                 default:
