@@ -113,3 +113,9 @@ Guest access. On samba you would do this something like:
         writable = yes
 -- smb.conf snippet end --
 
+
+Z80
+===
+See the z80 subdirectory for slip and a tcp/ip stack for Z80
+as well as how to build a usmb2 client application for a
+Spectrum48k.

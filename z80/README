@@ -10,14 +10,58 @@ The stack uses a slightly modified version of the SLIP
 protocol to talk to a daemon that then bridges the packets
 to a tun0 network on linux.
 The difference to normal SLIP is that I have to escape also
-bytes with the value 0x00.   It is not clear if this is a bug
-in my environment or an issue with the rs232 library in z88dk.
-(the rs232 code is VERY untested)
+bytes with the value 0x00.
+
+Bytes with the value 0x00 are apparently problematic on IF1
+so that is why this workaround is needed.
+It is not clear if this workaround is needed on other
+interfaces too but it does no harm. Except that we are technically
+not compatible with other SLIP implementations any more.
+
+Building
+--------
+<set up Z88DK environment>
+cd z80
+make clean
+make
 
 
-slip-tun.c is an example bridge that can bridge between the
-fifo's for rx and tx for fuse and tun0.
-It is an example, please modify or clean up before using.
+slip-tun
+========
+slip-tun is a small utility that can act as a network bridge
+between a tun interface and the rx/tx channels from the
+spectrum serial port.
 
+When running on an emulated system (FUSE, Spectrum48k + Interface1)
+this would be two fifos, one for RX and one for TX to the spectrum.
+For a physical spectrum48k, this would be the serial port where
+the speccy is connected to the host.
+
+Example:
+# In first console :
+gcc slip-tun.c -o slip-tun
+rm -f /tmp/rx /tmp/tx
+mkfifo /tmp/rx
+mkfifo /tmp/tx
+sudo ./slip-tun tun0 /tmp/rx /tmp/tx
+
+# In a second console
+sudo fuse --rs232-tx=/tmp/tx --rs232-rx=/tmp/rx
+
+
+Network trace of spectrum48 using SMB2
+======================================
 See ../speccy-mapping-a-share.pcapng for an example of
-a spectrum 48k + interface1 accessinf a network share.
+a spectrum 48k + interface1 accessing a network share.
+
+
+ping
+====
+A simple example program that just pings a remote host.
+
+smb2-cat
+========
+An example program that connects to a remote smb2 file server,
+authenticates, maps a share, then reads a simple file.
+All names,passwords,files,... are hardcoded.
+

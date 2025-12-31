@@ -1,4 +1,27 @@
 /* -*-  mode:c; tab-width:8; c-basic-offset:8; indent-tabs-mode:nil;  -*- */
+/*
+ * Copyright 2026 Ronnie Sahlberg <ronniesahlberg@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the “Software”), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,24 +71,28 @@ int main(int argc, char* argv[]) {
         int nread, slip_pos, is_escape = 0, one = 1;
         struct sockaddr_in sin;
 
-        fds[0] = tun_open("tun0");  // Open TUN device named tun0
-        printf("Device tun0 opened\n");
-        system("rm rx");
-        system("rm tx");
-        system("mkfifo rx");
-        system("mkfifo tx");
-        system("ip link set dev tun0 up");
-        system("ip addr add 192.0.2.1/24 dev tun0 metric 600");
-        system("./FUSE");
+        if (argc != 4) {
+                fprintf(stderr, "Usage: %s <tun> <rx> <tx>\n", argv[0]);
+                fprintf(stderr, "\t<rx/tx> are the rx/tx channels from the spectrums perspective\n");
+                exit(1);
+        }
+            
+        fds[0] = tun_open(argv[1]);  // Open TUN device named tun0
+        printf("Device %s opened\n", argv[1]);
+        
+        sprintf(slip, "ip link set dev %s up", argv[1]);
+        system(slip);
+        sprintf(slip, "ip addr add 192.0.2.1/24 dev %s metric 600", argv[1]);
+        system(slip);
 
-        fds[2] = open("rx", O_WRONLY);
+        fds[2] = open(argv[2], O_WRONLY);
         if (fds[2] == -1) {
-                printf("Failed to open rx\n");
+                printf("Failed to open %s as rx\n", argv[2]);
                 exit(10);
         }
-        fds[1] = open("tx", O_RDONLY);
+        fds[1] = open(argv[3], O_RDONLY);
         if (fds[1] == -1) {
-                printf("Failed to open tx\n");
+                printf("Failed to open %s as tx\n", argv[3]);
                 exit(10);
         }
 
@@ -113,46 +140,7 @@ int main(int argc, char* argv[]) {
                                 continue;
                         }
                         
-                        printf("Read %d bytes from device %s\n", nread, "tun0");
-#if 0                        
-                        c = END;
-                        write(fds[2], &c, 1);
-                        for (i = 0; i < nread; i++) {
-                                if (i == 20){
-                                        printf("\n");
-                                }
-                                switch (buffer[i]) {
-                                case ZER:
-                                        printf("ZER ");
-                                        c = ESC;
-                                        write(fds[2], &c, 1);
-                                        c = ESC_ZER;
-                                        write(fds[2], &c, 1);
-                                        break;
-                                case END:
-                                        printf("END ");
-                                        c = ESC;
-                                        write(fds[2], &c, 1);
-                                        c = ESC_END;
-                                        write(fds[2], &c, 1);
-                                        break;
-                                case ESC:
-                                        printf("ESC ");
-                                        c = ESC;
-                                        write(fds[2], &c, 1);
-                                        c = ESC_ESC;
-                                        write(fds[2], &c, 1);
-                                        break;
-                                default:
-                                        c = buffer[i];
-                                        printf("%02x ", buffer[i]);
-                                        write(fds[2], &c, 1);
-                                }
-                        }
-                        printf("\n");
-                        c = END;
-                        write(fds[2], &c, 1);
-#else
+                        printf("Read %d bytes from device %s\n", nread, argv[1]);
                         b[pos++] = END;
                         for (i = 0; i < nread; i++) {
                                 switch (buffer[i]) {
@@ -173,13 +161,14 @@ int main(int argc, char* argv[]) {
                                 }
                         }
                         b[pos++] = END;
-                        printf("\n");
                         write(fds[2], b, pos);
+#if 0
+                        printf("\n");
                         for (i = 0; i < pos; i++) {
                                 printf("%02x ", b[i]);
                         }
                         printf("\n");
-#endif                        
+#endif
                 }
                 if (pfds[1].revents) {
                         unsigned char c;
