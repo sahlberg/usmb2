@@ -1,0 +1,80 @@
+Tiny TCP/IP stack for Z80.
+Or calling it a TCPIP stack might be a stretch.
+It is something that under favorable conditions
+have some degree of interoperability with a TCPIP
+peer.
+
+SLIP
+====
+Z80 machines do not come with network interfaces so
+this stack is built ontop of SLIP.
+SLIP is used to talk between the Z80 host and a
+linux host running a special slip endpoint (slip.tap.c)
+that bridges the packets between the RS232 port
+on the Z80 machine and the outside world.
+
+The implementation of SLIP differs to RFC1055
+in that this implementation also ESCapes the 0x00
+character, a character which for example the Interface1
+on Spectrum appears to have issues with.
+Thus this is not compatible with RFC1055 endpoint
+but can only be used with slip-tap.c which contais the
+same enhancement to the SLIP protocol.
+
+Slip is implemented in slip.c.
+
+Before TCPIP can be used the RS232 SLIP session must be
+configured. This is done by calling :
+
+int slip_init(int baud_rate, int parity);
+-----------------------------------------
+
+TCPIP
+=====
+A minimal implementation of "tcpip" is in the files
+ip.c
+icmp.c
+tcp.c
+
+This is a very minimal implementation, designed for small
+size and not feature set.
+There is no sockets API.
+Instead there are four special functions to manage the TCP connection.
+The stack only supports a single TCP connection.
+
+
+int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port);
+----------------------------------------------------------------------------------
+
+This function is used to establish a TCP connection between src/src_port and
+dst/dst_port.
+If the attempt fails, for example if it collides with and older session on
+the server, it will re-attempt the connection a handful of times
+with a random src_port.
+
+
+int tcp_send(uint8_t *data, int len);
+-------------------------------------
+Send len amount of data to the server.
+Data can be NULL, for example if the application has already written
+the PDU directly into the network buffer.
+
+See usmb2.c for an example of writing directly into the tcp buffer in the network
+stack and calling tcp_send(NULL, len);
+This saves a memcpy() inside tcp_send(),
+
+
+int tcp_recv(void);
+-------------------
+This reads and populates the network buffer with the next packet of
+TCP payload data.
+If rc<0 an error occured.  This is probably not recoverable :-(
+If rc==0, no payload was received. Call tcp_recv() to continue to wait.
+If rc>0 we got rc bytes of TCP payload from the server.
+tcp_buffer() can be called to find the start of the tcp buffer.
+
+
+uint8_t *tcp_buffer(void);
+--------------------------
+This function returns the buffer of the tcp payload.
+

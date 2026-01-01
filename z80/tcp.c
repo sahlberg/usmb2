@@ -43,7 +43,7 @@ struct tcp_ctx {
         uint16_t dst_port;
         uint32_t seq;
         uint32_t ack;
-        uint8_t ths;  /* most recent data segment tcp heaer size */
+        uint8_t ths;  /* most recent data segment tcp header size */
 };
 
 struct tcp_ctx tctx;
