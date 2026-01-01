@@ -43,7 +43,6 @@ struct tcp_ctx {
         uint16_t dst_port;
         uint32_t seq;
         uint32_t ack;
-        uint8_t send_syn;
         uint8_t ths;  /* most recent data segment tcp heaer size */
 };
 
@@ -85,7 +84,7 @@ int tcp_send(uint8_t *data, int len)
         u32 = htonl(tctx.ack);
         memcpy(&ptr[8], &u32, 4);
         ptr[12] = 0x60;
-        if (tctx.send_syn) {
+        if (tctx.seq == 1) {
                 ptr[13] = TCP_SYN;
         } else {
                 if (len) {
@@ -144,11 +143,8 @@ int tcp_recv(void)
          * We are VERY slow so there will be many retransmissions just because we might
          * not be able to even ACK a segment in time
          */
-        /* Send an immediate ACK to SYN+ACK or segments containing data */
-        if (ptr[20 + 13] & TCP_SYN || len > 20 + tctx.ths) {
-                if (tctx.send_syn) {
-                        tctx.send_syn = 0;
-                }
+        /* Send an immediate ACK to segments containing data */
+        if (len > 20 + tctx.ths) {
                 memcpy(&seq, &ptr[20 + 4], 4);
                 seq = htonl(seq);
 
@@ -158,15 +154,11 @@ int tcp_recv(void)
                 }
 
                 tctx.ack = seq;
-                if (ptr[20 + 13] & TCP_SYN) {
-                        tctx.ack++;
-                }
                 if (len > 20 + 24) {
                         tctx.ack += len - 20 - tctx.ths;
                 }
                 /* tcp_send above might corrupt the initial 4 bytes if the server gave us just a
                  * 20 byte tcp header (we write a 24 byte tcp header in tcp_send())
-                 * so we must restore it
                  */
                 memcpy(&tmp, tcp_buffer(), 4);
                 tcp_send(NULL, 0);
@@ -178,19 +170,34 @@ int tcp_recv(void)
 
 int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port)
 {
-        int rc;
+        uint8_t *ptr = ip_buffer(0);
+        int rc, num_tries = 0;
 
+ again:
+        if (num_tries++ > 5) {
+                return -1;
+        }
         tctx.src = src;
         tctx.src_port = src_port;
         tctx.dst = dst;
         tctx.dst_port = dst_port;
         tctx.seq = 1;
         tctx.ack = 0;
-        tctx.send_syn = 1;
 
         rc = tcp_send(NULL, 0);
         rc = tcp_recv();
-        
+        /* If we don't get a SYN+ACK then something went wrong.
+         * Pick a different port and try again.
+         */
+        if ((ptr[9] != IP_TCP) ||
+            ((ptr[20 + 13] & (TCP_SYN|TCP_ACK)) != (TCP_SYN|TCP_ACK))) {
+                src_port += *(uint16_t *)&ptr[20 + 16]; /* use checksum as random increment */
+                goto again;
+        }
+        tctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
+        tctx.seq = 2;
+        /* Send an ACK and complete the TCP session establish */
+        tcp_send(NULL, 0);
         return 0;
 }
 
