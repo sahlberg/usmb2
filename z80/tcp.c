@@ -66,8 +66,6 @@ static uint32_t htonl(uint32_t val)
         return tmp;
 }
 
-uint8_t ack_pkt[44];
-
 int tcp_send(uint8_t *data, int len)
 {
         uint8_t *ptr = ip_buffer(20);
@@ -98,7 +96,7 @@ int tcp_send(uint8_t *data, int len)
         }
         ptr[14] = 4; /* window */
 
-        /* pseudo header, will be overwritten in ip_build_and_send() */
+        /* pseudo header, will be overwritten by ip_build_and_send() */
         memcpy(ptr - 12, &tctx.src, 4);
         memcpy(ptr -  8, &tctx.dst, 4);
         ptr[-4] = 0;
@@ -142,11 +140,11 @@ int tcp_recv(void)
                 tctx.seq = ack;
         }
 
-        /* Track seq numbers for incoming packets and ignore retranmsinnsions
-         * we are VERY slow so there will be many retransmissions just because we might
+        /* Track seq numbers for incoming packets and ignore retranmissions.
+         * We are VERY slow so there will be many retransmissions just because we might
          * not be able to even ACK a segment in time
          */
-        /* do we need to send an immediate ack ? */
+        /* Send an immediate ACK to SYN+ACK or segments containing data */
         if (ptr[20 + 13] & TCP_SYN || len > 20 + tctx.ths) {
                 if (tctx.send_syn) {
                         tctx.send_syn = 0;

@@ -81,4 +81,3 @@ uint8_t *ip_buffer(int offset)
 {
         return &pkt[offset];
 }
-
