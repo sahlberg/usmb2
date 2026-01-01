@@ -9,7 +9,7 @@ all: $(PROGRAMS)
 
 
 smb2-cat.bin: smb2-cat.o $(OFILESNET) $(OFILESSMB)
-	zcc +zx -o $@ smb2-cat.o $(OFILESNET) $(OFILESSMB) -lndos -lrs232if1 -create-app 
+	zcc +zx -o $@ smb2-cat.c -I.. $(OFILESNET) $(OFILESSMB) -lndos -lrs232if1 -create-app -DAMALLOC
 
 ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ ping.c $(OFILESNET) -lndos -lrs232if1 -create-app 

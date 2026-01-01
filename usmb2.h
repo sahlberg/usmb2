@@ -64,13 +64,8 @@ uint8_t *usmb2_readdir(struct usmb2_context *usmb2, uint8_t *dh);
 int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid);
 #define usmb2_closedir(u, f) usmb2_close(u, f)
 #else /* USMB2_FEATURE_CLOSE */
-#if defined(Z80)
-#define usmb2_close(u,f) ;
-#define usmb2_closedir(u,f) ;
-#else
 #define usmb2_close(u,f) free(f)
 #define usmb2_closedir(u,f) free(f)
-#endif
 #endif /* USMB2_FEATURE_CLOSE */
 
 #endif /* !_USMB2_H_ */

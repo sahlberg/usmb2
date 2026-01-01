@@ -119,10 +119,6 @@ static int send_rqst_to_socket(void)
         
         return 0;
 }
-
-uint8_t fid0[16];
-uint8_t dir0[16 + MAX_DIR_SIZE];
-
 #endif
 
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
@@ -516,19 +512,12 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
                    return NULL;
         }
 
-#if defined(Z80)
-        if (mode & O_DIRECTORY) {
-                ptr = &dir0[0];
-        } else {
-                ptr = &fid0[0];
-        }
-#else
         if (mode & O_DIRECTORY) {
                 ptr = calloc(1, 16 + MAX_DIR_SIZE);
         } else {
                 ptr = malloc(16);
         }
-#endif
+
         if (ptr) {
                 memcpy(ptr, &usmb2->buf[64], 16);
         }
@@ -728,22 +717,18 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
 
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password)
 {
-#if defined(Z80)
         struct usmb2_context *usmb2;
-        static struct usmb2_context u2;
-        
-        usmb2 = &u2;
-        memset(usmb2, 0, sizeof(usmb2));
-#else
-        struct usmb2_context *usmb2;
+#if !defined(Z80)
         struct sockaddr_in sin;
         int socksize = sizeof(struct sockaddr_in);
-        
+#endif
+
         usmb2 = calloc(1, sizeof(struct usmb2_context));
         if (usmb2 == NULL) {
                 return NULL;
         }
 
+#if !defined(Z80)
         usmb2->fd = socket(AF_INET, SOCK_STREAM, 0);
 
         sin.sin_family = AF_INET;
@@ -762,16 +747,12 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
         strcpy(usmb2->password, password);
 
         if (usmb2_negotiateprotocol(usmb2)) {
-#if !defined(Z80)
                 free(usmb2);
-#endif
                 return NULL;
         }
 
         if (usmb2_sessionsetup(usmb2)) {
-#if !defined(Z80)
                 free(usmb2);
-#endif
                 return NULL;
         }
         
