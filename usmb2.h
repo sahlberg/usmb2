@@ -8,6 +8,8 @@
 #define O_DIRECTORY 0x1000
 #endif
 
+#define STATUS_END_OF_FILE       0xC0000011
+
 /*
  * Defines to enable features in usmb2:
  * USMB2_FEATURE_WRITE : Adds support to write to files.
@@ -52,9 +54,9 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc);
  */
 uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode);
 
-int usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *rbuf, uint8_t *wbuf, int count, uint64_t offset);
-int usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
-int usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
+int32_t usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *rbuf, uint8_t *wbuf, int count, uint64_t offset);
+int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
+int32_t usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset);
 int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid);
 
 uint8_t *usmb2_opendir(struct usmb2_context *usmb2, const char *name);

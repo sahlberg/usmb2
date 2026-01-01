@@ -36,9 +36,10 @@ char buf[256];
 
 int main(void)
 {
-        int rc;
+        int i, pos;
         uint32_t src = 0x020200c0; /* 192.0.2.2 */
         uint32_t dst;
+        int32_t rc;
         int ipi[4];
         uint8_t *ip;
         struct usmb2_context *usmb2;
@@ -48,8 +49,8 @@ int main(void)
         ip = (uint8_t *)&src;
         printf("My IP address: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
         
-        printf("Server IP: ");fflush(stdout);
 #if 0        
+        printf("Server IP: ");fflush(stdout);
         scanf("%d.%d.%d.%d\n", &ipi[0], &ipi[1], &ipi[2], &ipi[3]);
         ip = (uint8_t *)&dst;
         ip[0] = ipi[0];
@@ -63,7 +64,6 @@ int main(void)
 
         slip_init(RS_BAUD_9600, RS_PAR_NONE);
         rc = tcp_connect(src, 118, dst, 445);
-        printf("rc:%d\n", rc);
 
         usmb2 = usmb2_init_context(0x0b0a0a0a, "sahlberg", "otto1234"); /* 10.10.10.11 */
         if (usmb2 == NULL) {
@@ -76,7 +76,26 @@ int main(void)
 		printf("usmb2_open failed\n");
 		return 0;
         }
-        usmb2_pread(usmb2, fh, buf, 100, 0);
+        pos = 0;
+ again:
+        rc = usmb2_pread(usmb2, fh, buf, 100, pos);
+        if (rc == STATUS_END_OF_FILE) {
+                goto finished;
+        }
+        if (rc < 0) {
+		printf("usmb2_read failed\n");
+		return 0;
+        }
+        if (rc > 0) {
+                for (i = 0; i < rc; i++) {
+                        putchar(buf[i]);
+                }
+                pos += rc;
+                goto again;
+        }
+ finished:
+        printf("\n");
+
         usmb2_close(usmb2, fh);
 
         return 0;
