@@ -631,10 +631,10 @@ int32_t usmb2_prw(struct usmb2_context *usmb2, int cmd, uint8_t *fid, uint8_t *r
         /* fid. fid is stored 8 bytes further into the pdu for getinfo vs read/write */
         memcpy(ptr, fid, 16);
 
-        
         u32 = usmb2_build_request(usmb2,
                                   cmd, 48 + ((cmd == CMD_READ) ? 8 : 0), 16,
-                                  wbuf, count, rbuf, count);
+                                  wbuf, (cmd == CMD_WRITE) ? count : 0,
+                                  rbuf, (cmd == CMD_READ) ? count : 0);
         if (u32) {
                    return u32;
         }
