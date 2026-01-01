@@ -677,7 +677,7 @@ int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int
         return usmb2_prw(usmb2, 8, fid, buf, NULL, count, offset);
 }
 #ifdef USMB2_FEATURE_WRITE
-nt usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
+int32_t usmb2_pwrite(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         return usmb2_prw(usmb2, 9, fid, NULL, buf, count, offset);
 }
