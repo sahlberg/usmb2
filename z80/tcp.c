@@ -71,9 +71,9 @@ int tcp_send(uint8_t *data, int len)
         uint16_t cs;
         uint32_t u32;
 
-        memset(ptr, 0, 24);
+        memset(ptr, 0, 20);
         if (data) {
-                memcpy(ptr + 24, data, len);
+                memcpy(ptr + 20, data, len);
         }
         cs = htons(tctx.src_port);
         memcpy(&ptr[0], &cs, 2);
@@ -83,7 +83,7 @@ int tcp_send(uint8_t *data, int len)
         memcpy(&ptr[4], &u32, 4);
         u32 = htonl(tctx.ack);
         memcpy(&ptr[8], &u32, 4);
-        ptr[12] = 0x60;
+        ptr[12] = 0x50;
         if (tctx.seq == 1) {
                 ptr[13] = TCP_SYN;
         } else {
@@ -100,13 +100,13 @@ int tcp_send(uint8_t *data, int len)
         memcpy(ptr -  8, &tctx.dst, 4);
         ptr[-4] = 0;
         ptr[-3] = IP_TCP;
-        cs = htons(24 + len);
+        cs = htons(20 + len);
         memcpy(ptr - 2, &cs, 2);
         
-        cs = csum((uint16_t *)&ptr[-12], 12 + 24 + len);
+        cs = csum((uint16_t *)&ptr[-12], 12 + 20 + len);
         memcpy(&ptr[16], &cs, 2); 
         
-        ip_build_and_send(tctx.src, tctx.dst, 20 + 24 + len, IP_TCP);
+        ip_build_and_send(tctx.src, tctx.dst, 20 + 20 + len, IP_TCP);
         
         return 0;
 }
@@ -114,7 +114,7 @@ int tcp_send(uint8_t *data, int len)
 int tcp_recv(void)
 {
         uint8_t *ptr = ip_buffer(20);
-        uint32_t seq, ack, tmp;
+        uint32_t seq, ack;
         int len;
         int i;
         
@@ -154,15 +154,10 @@ int tcp_recv(void)
                 }
 
                 tctx.ack = seq;
-                if (len > 20 + 24) {
+                if (len > 20 + 20) {
                         tctx.ack += len - 20 - tctx.ths;
                 }
-                /* tcp_send above might corrupt the initial 4 bytes if the server gave us just a
-                 * 20 byte tcp header (we write a 24 byte tcp header in tcp_send())
-                 */
-                memcpy(&tmp, tcp_buffer(), 4);
                 tcp_send(NULL, 0);
-                memcpy(tcp_buffer(), &tmp, 4);
         }
 
         return len - 20 - tctx.ths;

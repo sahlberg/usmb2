@@ -125,7 +125,7 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
 #if defined(Z80)
         uint8_t *ptr;
-        ptr = ip_buffer(20 + 24); /* we always write a 24 byte tcp header */
+        ptr = ip_buffer(20 + 20); /* we always write a 20 byte tcp header */
 
         memcpy(&ptr[send_pos], buf, len);
         send_pos += len;
