@@ -123,14 +123,23 @@ int tcp_recv(void)
 
         /* sanity checks */
         if (len < 20 + 20) {
-                return -1;
+                return 0;
         }
         if (ptr[0] != 0x45) {
-                return -1;
+                return 0;
         }
         if (ptr[9] != IP_TCP) {
-                return -1;
+                return 0;
         }
+        if (tctx.dst_port >> 8 != ptr[20 + 0] ||
+            (tctx.dst_port & 0xff) != ptr[20 + 1]) {
+                return 0;
+        }
+        if (tctx.src_port >> 8 != ptr[20 + 2] ||
+            (tctx.src_port & 0xff) != ptr[20 + 3]) {
+                return 0;
+        }
+
         tctx.ths = ptr[20 + 12] >> 2;
 
         memcpy(&ack, &ptr[20 + 8], 4);
