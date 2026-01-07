@@ -37,10 +37,14 @@
 #define TCP_URG 0x20
 
 struct tcp_ctx {
-        uint32_t src;
+        /* Port numbers in network byte order, not host order, so we can check the src/dst
+         * ports of received packets by a simple memcmp().
+         * The ordering of dst_port/src_port is important.
+         */
+        uint16_t dst_port;
         uint16_t src_port;
         uint32_t dst;
-        uint16_t dst_port;
+        uint32_t src;
         uint32_t seq;
         uint32_t ack;
         uint8_t ths;  /* most recent data segment tcp header size */
@@ -75,9 +79,9 @@ int tcp_send(uint8_t *data, int len)
         if (data) {
                 memcpy(ptr + 20, data, len);
         }
-        cs = htons(tctx.src_port);
+        cs = tctx.src_port;
         memcpy(&ptr[0], &cs, 2);
-        cs = htons(tctx.dst_port);
+        cs = tctx.dst_port;
         memcpy(&ptr[2], &cs, 2);
         u32 = htonl(tctx.seq);
         memcpy(&ptr[4], &u32, 4);
@@ -113,7 +117,7 @@ int tcp_send(uint8_t *data, int len)
 
 int tcp_recv(void)
 {
-        uint8_t *ptr = ip_buffer(20);
+        uint8_t *ptr;
         uint32_t seq, ack;
         int len;
         int i;
@@ -131,12 +135,7 @@ int tcp_recv(void)
         if (ptr[9] != IP_TCP) {
                 return 0;
         }
-        if (tctx.dst_port >> 8 != ptr[20 + 0] ||
-            (tctx.dst_port & 0xff) != ptr[20 + 1]) {
-                return 0;
-        }
-        if (tctx.src_port >> 8 != ptr[20 + 2] ||
-            (tctx.src_port & 0xff) != ptr[20 + 3]) {
+        if (memcmp(&tctx.dst_port, &ptr[20], 4)) {
                 return 0;
         }
 
@@ -193,9 +192,9 @@ int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port
                 return -1;
         }
         tctx.src = src;
-        tctx.src_port = src_port;
+        tctx.src_port = htons(src_port);
         tctx.dst = dst;
-        tctx.dst_port = dst_port;
+        tctx.dst_port = htons(dst_port);
         tctx.seq = 1;
         tctx.ack = 0;
 
