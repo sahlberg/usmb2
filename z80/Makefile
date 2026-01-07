@@ -15,7 +15,7 @@ ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ ping.c $(OFILESNET) -lndos -lrs232if1 -create-app 
 
 %.o: %.c
-	zcc +zx -o $@ -c $^ -I.. -DUSMB2_FEATURE_CLOSE -DUSMB2_FEATURE_NTLM -DZ80
+	zcc +zx -o $@ -c $^ -I.. -DUSMB2_FEATURE_CLOSE -DUSMB2_FEATURE_NTLM -DZ80 -DSLIP_ESC_00
 
 clean:
 	$(RM) *.o ../*.o *.tap *.bin

@@ -18,6 +18,24 @@ It is not clear if this workaround is needed on other
 interfaces too but it does no harm. Except that we are technically
 not compatible with other SLIP implementations any more.
 
+FUSE Spectrum Interface1 bug
+----------------------------
+I think there is a bug in the FUSE emulator where it does not handle
+the byte 0x00 correctly on rx or tx.
+Rx of 0x00 is simply stripped while tx of 0x00 is replaced by the two byte
+sequence 0x00 + 0x2a.
+
+When compiling for FUSE Spectrum Interface1 you must define
+SLIP_ESC_00 as this will modify the SLIP protocol to also escape the 0x00
+characters.
+This makes it no longer compatible with standards compliant SLIP implementations
+but what can you do.
+
+Use this define when compiling for FUSE Spectrum Interface1   and hook it up
+via slip-tun.c as it has the same workaround for this issue.
+
+
+
 Building
 --------
 <set up Z88DK environment>
@@ -39,7 +57,7 @@ the speccy is connected to the host.
 
 Example:
 # In first console :
-gcc slip-tun.c -o slip-tun
+gcc slip-tun.c -o slip-tun -DSLIP_ESC_00
 rm -f /tmp/rx /tmp/tx
 mkfifo /tmp/rx
 mkfifo /tmp/tx

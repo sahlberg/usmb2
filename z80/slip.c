@@ -14,7 +14,7 @@
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+x * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
@@ -31,13 +31,23 @@
 
 /* SLIP special character codes
  */
-#define ZER             0x00
 #define END             0xC0    /* indicates end of packet */
 #define ESC             0xDB    /* indicates byte stuffing */
 #define ESC_END         0xDC    /* ESC ESC_END means END data byte */
 #define ESC_ESC         0xDD    /* ESC ESC_ESC means ESC data byte */
-#define ESC_ZER         0xDE    /* ESC ESC_ZER means ZER data byte */
 
+/*
+ * FUSE + Interface1 rs232 emulation seem to have a bug with the character 0x00
+ * that makes us have to escape also this character.
+ * This makes it no longer compatible with the normal SLIP protocol
+ * but what can you do.
+ * Define SLIP_ESC_00  if you are going to use this with a
+ * FUSE Spectrum 48k with Interface1 RS232
+ */
+#ifdef SLIP_ESC_00
+#define ZER             0x00
+#define ESC_ZER         0xDE    /* ESC ESC_ZER means ZER data byte */
+#endif
 
 int slip_init(int baud_rate, int parity)
 {
@@ -64,7 +74,7 @@ void send_packet(uint8_t *p, int len)
                         rs232_put(ESC);
                         rs232_put(ESC_ESC);
                         break;
-#if 1                        
+#ifdef SLIP_ESC_00
                 case ZER:
                         /* Kludge/workaround.  Fuse emulator when application writes 0x00
                          * to the serial port this becomes 0x00 + 0x2a  on the fifo.
@@ -117,11 +127,13 @@ int recv_packet(uint8_t *p, int len)
                 case ESC:
                         rs232_get(&c);
                         switch(c) {
+#ifdef SLIP_ESC_00
                         case ESC_ZER:
                                 if(received < len) {
                                         p[received++] = ZER;
                                 }
                                 break;
+#endif
                         case ESC_END:
                                 if(received < len) {
                                         p[received++] = END;

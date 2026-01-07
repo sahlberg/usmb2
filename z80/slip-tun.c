@@ -35,12 +35,23 @@
 
 #define IFNAMSIZ 16
 
-#define ZER             0000
 #define END             0300    /* indicates end of packet */
 #define ESC             0333    /* indicates byte stuffing */
 #define ESC_END         0334    /* ESC ESC_END means END data byte */
 #define ESC_ESC         0335    /* ESC ESC_ESC means ESC data byte */
+
+/*
+ * FUSE + Interface1 rs232 emulation seem to have a bug with the character 0x00
+ * that makes us have to escape also this character.
+ * This makes it no longer compatible with the normal SLIP protocol
+ * but what can you do.
+ * Define SLIP_ESC_00  if you are going to use this with a
+ * FUSE Spectrum 48k with Interface1 RS232
+ */
+#ifdef SLIP_ESC_00
+#define ZER             0000
 #define ESC_ZER         0336    /* ESC ESC_ZER means ZER data byte */
+#endif
 
 int tun_open(char* devname) {
         struct ifreq ifr;
@@ -144,10 +155,12 @@ int main(int argc, char* argv[]) {
                         b[pos++] = END;
                         for (i = 0; i < nread; i++) {
                                 switch (buffer[i]) {
+#ifdef SLIP_ESC_00
                                 case ZER:
                                         b[pos++] = ESC;
                                         b[pos++] = ESC_ZER;
                                         break;
+#endif
                                 case END:
                                         b[pos++] = ESC;
                                         b[pos++] = ESC_END;
@@ -216,11 +229,13 @@ int main(int argc, char* argv[]) {
                                 slip[slip_pos++] = ESC;
                                 continue;
                         }
+#ifdef SLIP_ESC_00                        
                         if (is_escape && c == ESC_ZER) {
                                 is_escape = 0;
                                 slip[slip_pos++] = ZER;
                                 continue;
                         }
+#endif
                         is_escape = 0;
                         slip[slip_pos++] = c;
                 }
