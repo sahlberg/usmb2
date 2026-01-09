@@ -171,14 +171,11 @@ int tcp_recv(void)
         return len - 20 - tctx.ths;
 }
 
-void get_r_register(uint16_t *p) {
-        (void) p;
+int get_r_register(void) {
 #asm
-        ld iy,$2
-        add iy,sp ;Bypass the return address of the function
-        ld hl,(iy)
+        ld h,0
         ld a,r
-        ld (hl),a
+        ld l,a
 #endasm
 }
 
@@ -205,11 +202,9 @@ int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port
          */
         if ((ptr[9] != IP_TCP) ||
             ((ptr[20 + 13] & (TCP_SYN|TCP_ACK)) != (TCP_SYN|TCP_ACK))) {
-                uint16_t t;
                 src_port += *(uint16_t *)&ptr[20 + 16]; /* use checksum as random increment */
                 /* use the r register for even more randomness */
-                get_r_register(&t);
-                src_port += t;
+                src_port += get_r_register();
                 goto again;
         }
         tctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
