@@ -51,7 +51,7 @@ int main(void)
         ip[3] = ipi[3];
         printf("\n");
 
-        slip_init(RS_BAUD_9600, RS_PAR_NONE);
+        slip_init(RS_BAUD_19200, RS_PAR_NONE);
         rc = icmp_echo_request(src, dst);
         if (rc == 0) {
                 printf("%d.%d.%d.%d is alive\n", ip[0], ip[1], ip[2], ip[3]);

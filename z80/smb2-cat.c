@@ -62,7 +62,7 @@ int main(void)
 #endif
         printf("\n");
 
-        slip_init(RS_BAUD_9600, RS_PAR_NONE);
+        slip_init(RS_BAUD_19200, RS_PAR_NONE);
         rc = tcp_connect(src, 118, dst, 445);
 
         usmb2 = usmb2_init_context(0x0b0a0a0a, "sahlberg", "otto1234"); /* 10.10.10.11 */

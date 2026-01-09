@@ -1,8 +1,20 @@
-Tiny TCP/IP stack for Z80.
+A tiny TCP/IP stack for Z80
+===========================
 Or calling it a TCPIP stack might be a stretch.
 It is something that under favorable conditions
 have some degree of interoperability with a TCPIP
 peer.
+
+It is designed to be as small as possible but still capable to
+exchange data with a TCP endpoint.
+It is designed for use-case where you send a small amount of data,
+that fits inside a single TCP segment, to the server and then
+wait for and receive a small amount of data, that also must fit inside
+a single TCP segment, coming back from the server.
+
+It uses the same static buffer for both sending packets as well as receiving
+packets coming back.
+
 
 SLIP
 ====
@@ -23,6 +35,31 @@ same enhancement to the SLIP protocol.
 
 Slip is implemented in slip.c.
 
+
+-DSLIP_ESC_00
+=============
+Use this define when compiling for FUSE Spectrum + Interface1.
+Both the stack itself as well as slip-tun.c
+
+FUSE Spectrum Interface1 bug
+----------------------------
+I think there is a bug in the FUSE emulator where it does not handle
+the byte 0x00 correctly on rx or tx.
+Rx of 0x00 is simply stripped while tx of 0x00 is replaced by the two byte
+sequence 0x00 + 0x2a.
+
+When compiling for FUSE Spectrum Interface1 you must define
+SLIP_ESC_00 as this will modify the SLIP protocol to also escape the 0x00
+characters.
+This makes it no longer compatible with standards compliant SLIP implementations
+but what can you do.
+
+Use this define when compiling for FUSE Spectrum Interface1   and hook it up
+via slip-tun.c as it has the same workaround for this issue.
+
+
+API
+===
 Before TCPIP can be used the RS232 SLIP session must be
 configured. This is done by calling :
 
@@ -78,3 +115,11 @@ uint8_t *tcp_buffer(void);
 --------------------------
 This function returns the buffer of the tcp payload.
 
+
+Timings/Timeouts
+================
+On FUSE Interface1, if there is no data to read then each rs232_get() takes ~12ms.
+This can be used as a timeout to break out of the loop in tcp_recv() if there is not
+data to receive.
+We possibly need to check how long rs232_get() for an idle serial port takes
+for all other interfaces as well.
