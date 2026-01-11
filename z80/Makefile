@@ -9,13 +9,13 @@ all: $(PROGRAMS)
 
 
 smb2-cat.bin: smb2-cat.o $(OFILESNET) $(OFILESSMB)
-	zcc +zx -o $@ smb2-cat.c -I.. $(OFILESNET) $(OFILESSMB) -lndos -lrs232if1 -create-app -DAMALLOC
+	zcc +zx -o $@ smb2-cat.c -I.. $(OFILESNET) $(OFILESSMB) -lndos -lrs232if1 -create-app -DUSMB2_FEATURE_CLOSE -DAMALLOC -DRS232_TPS=80
 
 ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ ping.c $(OFILESNET) -lndos -lrs232if1 -create-app 
 
 %.o: %.c
-	zcc +zx -o $@ -c $^ -I.. -DUSMB2_FEATURE_CLOSE -DUSMB2_FEATURE_NTLM -DZ80 -DSLIP_ESC_00
+	zcc +zx -o $@ -c $^ -I.. -DUSMB2_FEATURE_CLOSE -DUSMB2_FEATURE_NTLM -DZ80 -DSLIP_ESC_00 -DRS232_TPS=80
 
 clean:
 	$(RM) *.o ../*.o *.tap *.bin

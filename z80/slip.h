@@ -30,6 +30,6 @@
 
 int slip_init(int baud_rate, int parity);
 void send_packet(uint8_t *p, int len);
-int recv_packet(uint8_t *p, int len);
+int recv_packet(uint8_t *p, int len, int to);
 
 #endif /*_SLIP_H_ */

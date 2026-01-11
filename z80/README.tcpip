@@ -12,8 +12,27 @@ that fits inside a single TCP segment, to the server and then
 wait for and receive a small amount of data, that also must fit inside
 a single TCP segment, coming back from the server.
 
-It uses the same static buffer for both sending packets as well as receiving
+What does it support:
+* A single tcp connection.
+
+* A single static buffer for both sending packets as well as receiving
 packets coming back.
+
+* Retransmitting after ~1 second IF we sent data but did not receive an ACK.
+
+* Detecting and ignoring when the other side retransmits data.
+  (Which happens pretty often as we often are too slow to ACK data quickly
+   enough causing the server to retransmit.)
+   
+* A very small footprint.
+
+
+Files
+=====
+slip.c slip.h   # Send and receive IP packets over RS232
+ip.c ip.h       # Craft IP heaer for sending packets
+icmp.c icmp.h   # If you want to send icmp packets, otherwise skip these
+tcp.c tcp.h     # "tcp" layer for sending/receiving data on a "tcp socket"
 
 
 SLIP
@@ -80,6 +99,21 @@ Instead there are four special functions to manage the TCP connection.
 The stack only supports a single TCP connection.
 
 
+-DRS232_TPS=xyz
+---------------
+If there is no data to read rs232_get() will eventually timeout.
+We need to know how log this timeout is so that we can detect when we need to do a
+retransmission or when the application wants to abort the TCP operation.
+This define specifies how many timedout calls to rs232_get() per second and this
+will be different for every rs232 implementation.
+
+For Spectrum Interface1 this should be set to 80.
+I.e. -DRS232_TPS=80
+
+For other serial ports you will need to etermine what this value should be.
+(It does not have to be very accurate.)
+
+
 int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port);
 ----------------------------------------------------------------------------------
 
@@ -92,7 +126,9 @@ with a random src_port.
 
 int tcp_send(uint8_t *data, int len);
 -------------------------------------
-Send len amount of data to the server.
+Send len amount of data to the server and wait for the server to ACK the data.
+Will retransmit the data a few times if the data has not been ACKed after ~1s.
+
 Data can be NULL, for example if the application has already written
 the PDU directly into the network buffer.
 
@@ -105,15 +141,19 @@ int tcp_recv(void);
 -------------------
 This reads and populates the network buffer with the next packet of
 TCP payload data.
-If rc<0 an error occured.  This is probably not recoverable :-(
-If rc==0, no payload was received. Call tcp_recv() to continue to wait.
-If rc>0 we got rc bytes of TCP payload from the server.
-tcp_buffer() can be called to find the start of the tcp buffer.
+If no data has arrived after ~1s the function will timeout with -EAGAIN.
+rc==-EAGAIN   We timed out waiting for data from the server.
+              Not necessarily an error, could just be that there was
+	      no data from the server to read and process.
+rc<0          Some error occured.  This is probably not recoverable :-(
+rc==0         No payload was received. Call tcp_recv() to continue to wait.
+rc>0          We got rc bytes of TCP payload from the server.
+              tcp_buffer() can be called to find the start of the tcp buffer.
 
 
 uint8_t *tcp_buffer(void);
 --------------------------
-This function returns the buffer of the tcp payload.
+This function returns the buffer for the tcp payload.
 
 
 Timings/Timeouts

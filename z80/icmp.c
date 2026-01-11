@@ -23,6 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <errno.h>    /* for EAGAIN */
 #include <stdio.h>
 #include <string.h>
 #include "ip.h"
@@ -31,19 +32,28 @@
 
 int icmp_echo_request(uint32_t src, uint32_t dst)
 {
-        uint8_t *ptr = ip_buffer(20);
+        uint8_t *ptr;
         uint16_t cs;
-        int len;
-
-        memset(ptr, 0, 64);
-        ptr[0] = ICMP_TYPE_ECHO;
-        
-        cs = csum((uint16_t *)&ptr[0], 64);
-        memcpy(&ptr[2], &cs, 2); 
-        ip_build_and_send(src, dst, 20 + 16, IP_ICMP);
+        int len, retries = 5;
 
         ptr = ip_buffer(0);
-        len = recv_packet(ptr, IP_MAX_SIZE);
+ again:
+        memset(ptr + 20, 0, 64);
+        ptr[20] = ICMP_TYPE_ECHO;
+        
+        cs = csum((uint16_t *)&ptr[20], 64);
+        memcpy(&ptr[22], &cs, 2);
+        ip_build_and_send(src, dst, 20 + 16, IP_ICMP);
+
+        len = recv_packet(ptr, IP_MAX_SIZE, RS232_TPS);
+        if (len == -EAGAIN) {
+                if (--retries) {
+                        goto again;
+                } else {
+                        return -1;
+                }
+        }
+
         if (len < 28) {
                 return -1;
         }

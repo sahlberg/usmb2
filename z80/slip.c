@@ -24,6 +24,7 @@ x * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  */
 /* SLIP  From RFC1055 */
 
+#include <errno.h>    /* for EAGAIN */
 #include <stdio.h>
 #include <rs232.h>
 
@@ -96,21 +97,27 @@ void send_packet(uint8_t *p, int len)
 /* RECV_PACKET: receives a packet into the buffer located at "p".
  *      If more than len bytes are received, the packet will
  *      be truncated.
- *      Returns the number of bytes stored in the buffer.
+ *      "to" is the number of rs232_get() timeouts to wait on an idle
+ *      session. This is different for each type of interface.
+ *
+ *      Returns the number of bytes stored in the buffer or -EAGAIN.
  */
-int recv_packet(uint8_t *p, int len)
+int recv_packet(uint8_t *p, int len, int to)
 {
         uint8_t c = 0;
         int received = 0;
 
-        /* Wait for an END character */
-        while (1) {
+        /* Wait for an END character or timeout*/
+        while (--to) {
                 rs232_get(&c);
                 if (c == END) {
                         break;
                 }
         }
-        
+        if (!to) {
+                return -EAGAIN;
+        }
+
         /* sit in a loop reading bytes until we put together
          * a whole packet.
          * Make sure not to copy them into the packet if we

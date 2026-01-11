@@ -94,7 +94,7 @@ int main(void)
                 goto again;
         }
  finished:
-        printf("\n");
+        printf("\n--Finished");
 
         usmb2_close(usmb2, fh);
 

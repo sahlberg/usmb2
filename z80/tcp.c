@@ -23,6 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <errno.h>    /* for EAGAIN */
 #include <stdio.h>
 #include <string.h>
 #include "ip.h"
@@ -48,6 +49,7 @@ struct tcp_ctx {
         uint32_t seq;
         uint32_t ack;
         uint8_t ths;  /* most recent data segment tcp header size */
+        int rx_data_len;
 };
 
 struct tcp_ctx tctx;
@@ -69,12 +71,34 @@ static uint32_t htonl(uint32_t val)
         return tmp;
 }
 
+/*
+ * tcp_send.
+ * Send data and wait for it to be ACKed. Retransmit up to 5 times
+ * if we do not receive a TCP ACK.
+ *
+ * If tctx.seq == 1 this means to use the SYN handshake
+ * to esstablish a new connection. len must be 0 for this case.
+ *
+ * Otherwise data/len is the data to transfer on the connection.
+ * Data can be NULL if the application has already written it
+ * to the network buffer. Otherwise it will be memcpy()ied from
+ * the argument.
+ *
+ * If we are sending a request, the ACK we wait for might be
+ * piggy-backed on a data-segment carrying the reply.
+ * In that case remember this in tctx.rx_data_len so that we can short-circuit
+ * and just return the data immediately when the application later calls
+ * tcp_recv().
+ */
 int tcp_send(uint8_t *data, int len)
 {
         uint8_t *ptr = ip_buffer(20);
         uint16_t cs;
-        uint32_t u32;
+        uint32_t u32, oseq;
+        int rc, retries = 0;
 
+        oseq = tctx.seq;
+ again:
         memset(ptr, 0, 20);
         if (data) {
                 memcpy(ptr + 20, data, len);
@@ -109,21 +133,76 @@ int tcp_send(uint8_t *data, int len)
         
         cs = csum((uint16_t *)&ptr[-12], 12 + 20 + len);
         memcpy(&ptr[16], &cs, 2); 
-        
+
         ip_build_and_send(tctx.src, tctx.dst, 20 + 20 + len, IP_TCP);
-        
+
+        /*
+         * Not a SYN and not a data segment so we don't have to wait for
+         * an ACK.
+         */
+        if (tctx.seq > 1 && len == 0) {
+                return 0;
+        }
+
+        rc = tcp_recv();
+        if (rc == -EAGAIN) {
+                if (retries++ < 5)  {
+                        goto again;
+                }
+                return -1;
+        }
+        if (rc < 0) {
+                return rc;
+        }
+        /* check the ACK number */
+        /* TODO: Check that all data has been acked and if not retransmit
+         * this shouldn't happen since we do retransmit alread if we did not receive
+         * any reponse at all.   Unless the server also retransmitted at the same time.
+         */
+
+        /* Remember we got rc number of bytes so that we can return it
+         * next time the application calls tcp_recv()
+         */
+        tctx.rx_data_len = rc;
         return 0;
 }
 
+/* tcp_recv
+ * Wait for a segment of data coming back from the server.
+ * We might have already recived the data as part of waiting for the
+ * ACK to a previous tcp_send.  In that case just return the amount of data
+ * we already got in the buffer.
+ *
+ * Returns:
+ *      >0: Amount of data received for this TCP sesison.
+ *       0: Something was received but it it did not contain data
+ *          for this session. It could have been an ACK.
+ *          Try again.
+ * -EAGAIN: Timed out waiting for a reply or we did not receive an
+ *          ACK for the full amount of data. Try again.
+ *      <0: Some other error.
+ */
 int tcp_recv(void)
 {
         uint8_t *ptr;
         uint32_t seq, ack;
         int len;
         int i;
+
+        /* We got some data last time we called tcp_recv() from within
+         * tcp_send().  Return it now since the application wants it.
+         */
+        if (tctx.rx_data_len) {
+                i = tctx.rx_data_len;
+                tctx.rx_data_len = 0;
+                return i;
+        }
         
         ptr = ip_buffer(0);
-        len = recv_packet(ptr, IP_MAX_SIZE);
+        len = recv_packet(ptr, IP_MAX_SIZE, RS232_TPS);
+        if (len < 0) {
+                return len;
+        }
 
         /* sanity checks */
         if (len < 20 + 20) {
@@ -139,14 +218,30 @@ int tcp_recv(void)
                 return 0;
         }
 
+        if (ptr[20 + 13] & TCP_RST) {
+                return -1;
+        }
+
         tctx.ths = ptr[20 + 12] >> 2;
 
         memcpy(&ack, &ptr[20 + 8], 4);
         ack = htonl(ack);
-        if ((ptr[20 + 13] & TCP_ACK) && (tctx.seq < ack)) {
-                tctx.seq = ack;
+        if (tctx.seq == 1) {
+                /* if this was a SYN-ACK, just send an immediate ack an return */
+                if (ptr[20 + 13] & TCP_SYN) {
+                        tctx.seq = ack;
+                        tctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
+                        tcp_send(NULL, 0);
+                        return 0;
+                }
+                return -1;
         }
 
+        /* Data got acked. Advance the sequemce number */
+        if (tctx.seq < ack) {
+                tctx.seq = ack;
+        }
+        
         /* Track seq numbers for incoming packets and ignore retranmissions.
          * We are VERY slow so there will be many retransmissions just because we might
          * not be able to even ACK a segment in time
@@ -179,39 +274,35 @@ int get_r_register(void) {
 #endasm
 }
 
+/* tcp_connect
+ * Try to establish a TCP connection to a server.
+ *
+ * Returns:
+ *  0: on success.
+ * <0: on failure.
+ */
 int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port)
 {
         uint8_t *ptr = ip_buffer(0);
-        int rc, num_tries = 0;
+        int rc, retries = 0;
 
- again:
-        if (num_tries++ > 5) {
-                return -1;
-        }
-        tctx.src = src;
-        tctx.src_port = htons(src_port);
-        tctx.dst = dst;
-        tctx.dst_port = htons(dst_port);
-        tctx.seq = 1;
-        tctx.ack = 0;
+        while (retries++ < 5) {
+                tctx.src = src;
+                tctx.src_port = htons(src_port);
+                tctx.dst = dst;
+                tctx.dst_port = htons(dst_port);
+                tctx.seq = 1;
+                tctx.ack = 0;
 
-        rc = tcp_send(NULL, 0);
-        rc = tcp_recv();
-        /* If we don't get a SYN+ACK then something went wrong.
-         * Pick a different port and try again.
-         */
-        if ((ptr[9] != IP_TCP) ||
-            ((ptr[20 + 13] & (TCP_SYN|TCP_ACK)) != (TCP_SYN|TCP_ACK))) {
+                rc = tcp_send(NULL, 0);
+                if (rc >= 0) {
+                        return rc;
+                }
                 src_port += *(uint16_t *)&ptr[20 + 16]; /* use checksum as random increment */
                 /* use the r register for even more randomness */
                 src_port += get_r_register();
-                goto again;
         }
-        tctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
-        tctx.seq = 2;
-        /* Send an ACK and complete the TCP session establish */
-        tcp_send(NULL, 0);
-        return 0;
+        return -1;
 }
 
 uint8_t *tcp_buffer(void)
