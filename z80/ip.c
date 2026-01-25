@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <net/hton.h>
 #include "ip.h"
 #include "slip.h"
 
@@ -55,8 +56,6 @@ uint16_t csum(uint16_t *ptr, int nbytes)
 	
 	return(answer);
 }
-
-#define htons(x) ((x<<8)|(x>>8))
 
 void ip_build_and_send(uint32_t src, uint32_t dst, uint16_t total_len, uint8_t proto)
 {

@@ -26,6 +26,7 @@
 #include <errno.h>    /* for EAGAIN */
 #include <stdio.h>
 #include <string.h>
+#include <net/hton.h>
 #include "ip.h"
 #include "tcp.h"
 #include "slip.h"
@@ -53,23 +54,6 @@ struct tcp_ctx {
 };
 
 struct tcp_ctx tctx;
-
-#define htons(x) ((x<<8)|(x>>8))
-static uint32_t htonl(uint32_t val)
-{
-        uint32_t tmp = 0;
-        uint8_t *ptr = (uint8_t *)&val;
-
-        tmp  = *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-
-        return tmp;
-}
 
 /*
  * tcp_send.
