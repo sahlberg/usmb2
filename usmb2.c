@@ -25,23 +25,7 @@
 #define htole64(x) (x)
 #define le32toh(x) (x)
 #define le64toh(x) (x)
-#define htons(x) ((x<<8)|(x>>8))
-static uint32_t htonl(uint32_t val)
-{
-        uint32_t tmp = 0;
-        uint8_t *ptr = (uint8_t *)&val;
-
-        tmp  = *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-        tmp <<= 8;
-        tmp |= *ptr++;
-
-        return tmp;
-}
-#define ntohl htonl
+#include <net/hton.h>
 #include "ip.h"
 #include "tcp.h"
 #include "slip.h"
@@ -97,7 +81,7 @@ static int recv_reply_from_socket(uint32_t wanted_mid)
         if (rc == 0) {
                 goto again;
         }
-        ptr = tcp_buffer();
+        ptr = tcp_rx_buffer();
         memcpy(&mid, &ptr[28], 4);
         mid = htole32(mid);
         if (mid != wanted_mid) {
@@ -125,7 +109,7 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
 #if defined(Z80)
         uint8_t *ptr;
-        ptr = ip_buffer(20 + 20); /* we always write a 20 byte tcp header */
+        ptr = tcp_tx_buffer();
 
         memcpy(&ptr[send_pos], buf, len);
         send_pos += len;
@@ -150,7 +134,7 @@ static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 { 
 #if defined(Z80)
         uint8_t *ptr;
-        ptr = tcp_buffer();
+        ptr = tcp_rx_buffer();
 
         memcpy(buf, &ptr[recv_pos], len);
         recv_pos += len;

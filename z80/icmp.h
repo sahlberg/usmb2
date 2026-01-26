@@ -30,6 +30,6 @@
 #define ICMP_TYPE_ECHO_REPLY    0
 #define ICMP_TYPE_ECHO          8
 
-int icmp_echo_request(uint32_t src, uint32_t dst);
+int icmp_echo_request(ip_context_t *ip_ctx);
 
 #endif /*_ICMP_H_ */

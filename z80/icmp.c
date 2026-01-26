@@ -30,20 +30,20 @@
 #include "icmp.h"
 #include "slip.h"
 
-int icmp_echo_request(uint32_t src, uint32_t dst)
+int icmp_echo_request(ip_context_t *ip_ctx)
 {
         uint8_t *ptr;
         uint16_t cs;
         int len, retries = 5;
 
-        ptr = ip_buffer(0);
+        ptr = ip_buffer(ip_ctx, 0);
  again:
         memset(ptr + 20, 0, 64);
         ptr[20] = ICMP_TYPE_ECHO;
         
         cs = csum((uint16_t *)&ptr[20], 64);
         memcpy(&ptr[22], &cs, 2);
-        ip_build_and_send(src, dst, 20 + 16, IP_ICMP);
+        ip_build_and_send(ip_ctx, 20 + 16, IP_ICMP);
 
         len = recv_packet(ptr, IP_MAX_SIZE, RS232_TPS);
         if (len == -EAGAIN) {

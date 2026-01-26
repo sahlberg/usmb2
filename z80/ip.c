@@ -29,8 +29,6 @@
 #include "ip.h"
 #include "slip.h"
 
-uint8_t pkt[IP_MAX_SIZE];
-
 uint16_t id = 1;
 
 uint16_t csum(uint16_t *ptr, int nbytes) 
@@ -57,9 +55,10 @@ uint16_t csum(uint16_t *ptr, int nbytes)
 	return(answer);
 }
 
-void ip_build_and_send(uint32_t src, uint32_t dst, uint16_t total_len, uint8_t proto)
+void ip_build_and_send(ip_context_t *ctx, uint16_t total_len, uint8_t proto)
 {
         uint16_t cs, tl;
+        uint8_t *pkt = ctx->pkt;
 
         memset(pkt, 0, 20);
         pkt[0] = 0x45;
@@ -68,15 +67,15 @@ void ip_build_and_send(uint32_t src, uint32_t dst, uint16_t total_len, uint8_t p
         memcpy(&pkt[4], &id, 2); id++;
         pkt[8] = 64;
         pkt[9] = proto;
-        memcpy(&pkt[12], &src, 4); 
-        memcpy(&pkt[16], &dst, 4); 
+        memcpy(&pkt[12], &ctx->saddr, 4);
+        memcpy(&pkt[16], &ctx->daddr, 4);
 
         cs = csum((uint16_t *)&pkt[0], 20);
-        memcpy(&pkt[10], &cs, 2); 
+        memcpy(&pkt[10], &cs, 2);
         send_packet(pkt, total_len);
 }
 
-uint8_t *ip_buffer(int offset)
+uint8_t *ip_buffer(ip_context_t *ctx, int offset)
 {
-        return &pkt[offset];
+        return &ctx->pkt[offset];
 }

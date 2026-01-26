@@ -32,19 +32,20 @@
 
 int main(void)
 {
+        ip_context_t ip_ctx;
         int rc;
-        uint32_t src = 0x020200c0; /* 192.0.2.2 */
-        uint32_t dst;
         int ipi[4];
         uint8_t *ip;
 
         zx_cls();
-        ip = (uint8_t *)&src;
-        printf("My IP address: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        ip_ctx.saddr = 0x020200c0; /* 192.0.2.2 */
         
-        printf("IP address to ping: ");fflush(stdout);
+        ip = (uint8_t *)&ip_ctx.saddr;
+        printf("My IP ADDRESS: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        
+        printf("IP ADDRESS to ping: ");fflush(stdout);
         scanf("%d.%d.%d.%d\n", &ipi[0], &ipi[1], &ipi[2], &ipi[3]);
-        ip = (uint8_t *)&dst;
+        ip = (uint8_t *)&ip_ctx.daddr;
         ip[0] = ipi[0];
         ip[1] = ipi[1];
         ip[2] = ipi[2];
@@ -52,7 +53,7 @@ int main(void)
         printf("\n");
 
         slip_init(RS_BAUD_19200, RS_PAR_NONE);
-        rc = icmp_echo_request(src, dst);
+        rc = icmp_echo_request(&ip_ctx);
         if (rc == 0) {
                 printf("%d.%d.%d.%d is alive\n", ip[0], ip[1], ip[2], ip[3]);
         } else {

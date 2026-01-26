@@ -31,6 +31,7 @@ int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port
 int tcp_send(uint8_t *data, int len);
 int tcp_recv(void);
 
-uint8_t *tcp_buffer(void);
+uint8_t *tcp_rx_buffer(void);
+uint8_t *tcp_tx_buffer(void);
 
 #endif /*_TCP_H_ */

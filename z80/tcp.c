@@ -38,29 +38,28 @@
 #define TCP_ACK 0x10
 #define TCP_URG 0x20
 
-struct tcp_ctx {
+typedef struct tcp_context {
+        ip_context_t ip;
         /* Port numbers in network byte order, not host order, so we can check the src/dst
          * ports of received packets by a simple memcmp().
          * The ordering of dst_port/src_port is important.
          */
         uint16_t dst_port;
         uint16_t src_port;
-        uint32_t dst;
-        uint32_t src;
         uint32_t seq;
         uint32_t ack;
         uint8_t ths;  /* most recent data segment tcp header size */
         int rx_data_len;
-};
+} tcp_context_t;
 
-struct tcp_ctx tctx;
+tcp_context_t tcp_ctx;
 
 /*
  * tcp_send.
  * Send data and wait for it to be ACKed. Retransmit up to 5 times
  * if we do not receive a TCP ACK.
  *
- * If tctx.seq == 1 this means to use the SYN handshake
+ * If tcp_ctx.seq == 1 this means to use the SYN handshake
  * to esstablish a new connection. len must be 0 for this case.
  *
  * Otherwise data/len is the data to transfer on the connection.
@@ -70,33 +69,33 @@ struct tcp_ctx tctx;
  *
  * If we are sending a request, the ACK we wait for might be
  * piggy-backed on a data-segment carrying the reply.
- * In that case remember this in tctx.rx_data_len so that we can short-circuit
+ * In that case remember this in tcp_ctx.rx_data_len so that we can short-circuit
  * and just return the data immediately when the application later calls
  * tcp_recv().
  */
 int tcp_send(uint8_t *data, int len)
 {
-        uint8_t *ptr = ip_buffer(20);
+        uint8_t *ptr = ip_buffer(&tcp_ctx.ip, 20);
         uint16_t cs;
         uint32_t u32, oseq;
         int rc, retries = 0;
 
-        oseq = tctx.seq;
+        oseq = tcp_ctx.seq;
  again:
         memset(ptr, 0, 20);
         if (data) {
                 memcpy(ptr + 20, data, len);
         }
-        cs = tctx.src_port;
+        cs = tcp_ctx.src_port;
         memcpy(&ptr[0], &cs, 2);
-        cs = tctx.dst_port;
+        cs = tcp_ctx.dst_port;
         memcpy(&ptr[2], &cs, 2);
-        u32 = htonl(tctx.seq);
+        u32 = htonl(tcp_ctx.seq);
         memcpy(&ptr[4], &u32, 4);
-        u32 = htonl(tctx.ack);
+        u32 = htonl(tcp_ctx.ack);
         memcpy(&ptr[8], &u32, 4);
         ptr[12] = 0x50;
-        if (tctx.seq == 1) {
+        if (tcp_ctx.seq == 1) {
                 ptr[13] = TCP_SYN;
         } else {
                 if (len) {
@@ -108,8 +107,8 @@ int tcp_send(uint8_t *data, int len)
         ptr[14] = 4; /* window */
 
         /* pseudo header, will be overwritten by ip_build_and_send() */
-        memcpy(ptr - 12, &tctx.src, 4);
-        memcpy(ptr -  8, &tctx.dst, 4);
+        memcpy(ptr - 12, &tcp_ctx.ip.saddr, 4);
+        memcpy(ptr -  8, &tcp_ctx.ip.daddr, 4);
         ptr[-4] = 0;
         ptr[-3] = IP_TCP;
         cs = htons(20 + len);
@@ -118,13 +117,13 @@ int tcp_send(uint8_t *data, int len)
         cs = csum((uint16_t *)&ptr[-12], 12 + 20 + len);
         memcpy(&ptr[16], &cs, 2); 
 
-        ip_build_and_send(tctx.src, tctx.dst, 20 + 20 + len, IP_TCP);
+        ip_build_and_send(&tcp_ctx.ip, 20 + 20 + len, IP_TCP);
 
         /*
          * Not a SYN and not a data segment so we don't have to wait for
          * an ACK.
          */
-        if (tctx.seq > 1 && len == 0) {
+        if (tcp_ctx.seq > 1 && len == 0) {
                 return 0;
         }
 
@@ -147,7 +146,7 @@ int tcp_send(uint8_t *data, int len)
         /* Remember we got rc number of bytes so that we can return it
          * next time the application calls tcp_recv()
          */
-        tctx.rx_data_len = rc;
+        tcp_ctx.rx_data_len = rc;
         return 0;
 }
 
@@ -176,13 +175,13 @@ int tcp_recv(void)
         /* We got some data last time we called tcp_recv() from within
          * tcp_send().  Return it now since the application wants it.
          */
-        if (tctx.rx_data_len) {
-                i = tctx.rx_data_len;
-                tctx.rx_data_len = 0;
+        if (tcp_ctx.rx_data_len) {
+                i = tcp_ctx.rx_data_len;
+                tcp_ctx.rx_data_len = 0;
                 return i;
         }
         
-        ptr = ip_buffer(0);
+        ptr = ip_buffer(&tcp_ctx.ip, 0);
         len = recv_packet(ptr, IP_MAX_SIZE, RS232_TPS);
         if (len < 0) {
                 return len;
@@ -190,31 +189,31 @@ int tcp_recv(void)
 
         /* sanity checks */
         if (len < 20 + 20) {
-                return 0;
+                return -EAGAIN;
         }
         if (ptr[0] != 0x45) {
-                return 0;
+                return -EAGAIN;
         }
         if (ptr[9] != IP_TCP) {
-                return 0;
+                return -EAGAIN;
         }
-        if (memcmp(&tctx.dst_port, &ptr[20], 4)) {
-                return 0;
+        if (memcmp(&tcp_ctx.dst_port, &ptr[20], 4)) {
+                return -EAGAIN;
         }
 
         if (ptr[20 + 13] & TCP_RST) {
-                return -1;
+                return -EAGAIN;
         }
 
-        tctx.ths = ptr[20 + 12] >> 2;
+        tcp_ctx.ths = ptr[20 + 12] >> 2;
 
         memcpy(&ack, &ptr[20 + 8], 4);
         ack = htonl(ack);
-        if (tctx.seq == 1) {
+        if (tcp_ctx.seq == 1) {
                 /* if this was a SYN-ACK, just send an immediate ack an return */
                 if (ptr[20 + 13] & TCP_SYN) {
-                        tctx.seq = ack;
-                        tctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
+                        tcp_ctx.seq = ack;
+                        tcp_ctx.ack = htonl(*(uint32_t *)&ptr[20 + 4]) + 1;
                         tcp_send(NULL, 0);
                         return 0;
                 }
@@ -222,8 +221,8 @@ int tcp_recv(void)
         }
 
         /* Data got acked. Advance the sequemce number */
-        if (tctx.seq < ack) {
-                tctx.seq = ack;
+        if (tcp_ctx.seq < ack) {
+                tcp_ctx.seq = ack;
         }
         
         /* Track seq numbers for incoming packets and ignore retranmissions.
@@ -231,23 +230,23 @@ int tcp_recv(void)
          * not be able to even ACK a segment in time
          */
         /* Send an immediate ACK to segments containing data */
-        if (len > 20 + tctx.ths) {
+        if (len > 20 + tcp_ctx.ths) {
                 memcpy(&seq, &ptr[20 + 4], 4);
                 seq = htonl(seq);
 
                 /* Sequence number has reversed so this is likely a retransmission */
-                if (seq < tctx.ack) {
+                if (seq < tcp_ctx.ack) {
                         return 0;
                 }
 
-                tctx.ack = seq;
+                tcp_ctx.ack = seq;
                 if (len > 20 + 20) {
-                        tctx.ack += len - 20 - tctx.ths;
+                        tcp_ctx.ack += len - 20 - tcp_ctx.ths;
                 }
                 tcp_send(NULL, 0);
         }
 
-        return len - 20 - tctx.ths;
+        return len - 20 - tcp_ctx.ths;
 }
 
 int get_r_register(void) {
@@ -267,16 +266,16 @@ int get_r_register(void) {
  */
 int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port)
 {
-        uint8_t *ptr = ip_buffer(0);
+        uint8_t *ptr = ip_buffer(&tcp_ctx.ip, 0);
         int rc, retries = 0;
 
         while (retries++ < 5) {
-                tctx.src = src;
-                tctx.src_port = htons(src_port);
-                tctx.dst = dst;
-                tctx.dst_port = htons(dst_port);
-                tctx.seq = 1;
-                tctx.ack = 0;
+                tcp_ctx.ip.saddr = src;
+                tcp_ctx.src_port = htons(src_port);
+                tcp_ctx.ip.daddr = dst;
+                tcp_ctx.dst_port = htons(dst_port);
+                tcp_ctx.seq = 1;
+                tcp_ctx.ack = 0;
 
                 rc = tcp_send(NULL, 0);
                 if (rc >= 0) {
@@ -289,10 +288,17 @@ int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port
         return -1;
 }
 
-uint8_t *tcp_buffer(void)
+uint8_t *tcp_rx_buffer(void)
 {
-        uint8_t *pkt = ip_buffer(0);
+        uint8_t *pkt = ip_buffer(&tcp_ctx.ip, 0);
         
-        return &pkt[20 + tctx.ths];
+        return &pkt[20 + tcp_ctx.ths];
+}
+
+uint8_t *tcp_tx_buffer(void)
+{
+        uint8_t *pkt = ip_buffer(&tcp_ctx.ip, 0);
+        
+        return &pkt[20 + 20]; /* we always write a 20 byte tcp header */
 }
 
