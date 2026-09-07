@@ -116,6 +116,8 @@ Guest access. On samba you would do this something like:
 
 Z80
 ===
-See the z80 subdirectory for slip and a tcp/ip stack for Z80
+The z80 subdirectory for slip and a tcp/ip stack for Z80
 as well as how to build a usmb2 client application for a
-Spectrum48k.
+Spectrum48k. 
+This is now obsolete and the TCPIP stack has now been broken out into
+a separate project: https://github.com/sahlberg/z80-tcpip
