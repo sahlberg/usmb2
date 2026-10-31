@@ -58,6 +58,7 @@
 
 #define STATUS_SUCCESS          0x00000000
 #define STATUS_MORE_PROCESSING  0xc0000016
+#define STATUS_CONNECTION_DISCONNECTED 0xc000020c
 
 /* Amount of QUERY_DIR payload to store in the directory handle */
 #define MAX_DIR_SIZE 256
@@ -105,6 +106,18 @@ static int send_rqst_to_socket(void)
 }
 #endif
 
+#if !defined(Z80)
+/* Closes the socket so that all further reads and writes fail at once */
+static int socket_failed(struct usmb2_context *usmb2)
+{
+        if (usmb2->fd >= 0) {
+                close(usmb2->fd);
+                usmb2->fd = -1;
+        }
+        return -1;
+}
+#endif
+
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
 #if defined(Z80)
@@ -118,8 +131,8 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
         
         while (len) {
                 count = write(usmb2->fd, buf, len);
-                if (count < 0) {
-                        return -1;
+                if (count <= 0) {
+                        return socket_failed(usmb2);
                 }
                 len -= count;
                 buf += count;
@@ -143,8 +156,8 @@ static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
         
         while (len) {
                 count = read(usmb2->fd, buf, len);
-                if (count < 0) {
-                        return -1;
+                if (count <= 0) {
+                        return socket_failed(usmb2);
                 }
                 len -= count;
                 buf += count;
@@ -287,6 +300,11 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
          */
         read_from_socket(usmb2, &usmb2->buf[commandincount], (int)spl);
 
+#if !defined(Z80)
+        if (usmb2->fd < 0) {
+                return STATUS_CONNECTION_DISCONNECTED;
+        }
+#endif
         return status;
 }
 
@@ -723,8 +741,7 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
         sin.sin_len = socksize;
 #endif
         if (connect(usmb2->fd, (struct sockaddr *)&sin, socksize) != 0) {
-                free(usmb2);
-                return NULL;
+                goto failed;
         }
 #endif
 
@@ -732,14 +749,21 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
         strcpy(usmb2->password, password);
 
         if (usmb2_negotiateprotocol(usmb2)) {
-                free(usmb2);
-                return NULL;
+                goto failed;
         }
 
         if (usmb2_sessionsetup(usmb2)) {
-                free(usmb2);
-                return NULL;
+                goto failed;
         }
         
         return usmb2;
+
+ failed:
+#if !defined(Z80)
+        if (usmb2->fd >= 0) {
+                close(usmb2->fd);
+        }
+#endif
+        free(usmb2);
+        return NULL;
 }

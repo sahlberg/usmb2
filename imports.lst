@@ -9,6 +9,7 @@ I_DelDrv
 ioman_IMPORTS_end
 
 ps2ip_IMPORTS_start
+I_lwip_close
 I_lwip_connect
 I_lwip_recv
 I_lwip_send

@@ -26,6 +26,7 @@
 
 #define write(a, b, c) lwip_send(a, b, c, 0)
 #define read(a, b, c) lwip_recv(a, b, c, 0)
+#define close(a) lwip_close(a)
 
 void* malloc(int size);
 void free(void* ptr);
