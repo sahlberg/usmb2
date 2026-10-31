@@ -28,6 +28,8 @@
 #include <string.h>
 #ifdef __Z88DK
 #include <net/hton.h>
+#elif defined(_IOP)
+#include "ps2iop-compat.h"
 #else
 #include <arpa/inet.h>
 #endif
