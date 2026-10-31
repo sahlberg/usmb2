@@ -22,6 +22,14 @@ all: $(PROGRAMS)
 smb2-cat.bin: smb2-cat.o $(OFILESNET) $(OFILESSMB)
 	zcc +zx -o $@ smb2-cat.c -I.. $(OFILESNET) $(OFILESSMB) -lndos -lrs232if1 -create-app -DZ80 -DUSMB2_FEATURE_CLOSE -DAMALLOC -DRS232_TPS=80
 
+# usmb2 and the tiny stack on a Linux host, on raw sockets instead of SLIP.
+# See raw.c for what it needs to run.
+HOSTCFILES = smb2-cat-host.c raw.c ip.c tcp.c ../usmb2.c ../ntlm.c ../md4c.c \
+	../md5.c ../hmac-md5.c
+smb2-cat-host: $(HOSTCFILES)
+	gcc -Wall -O2 -I.. -I. -DUSMB2_FEATURE_TINY_TCP -DUSMB2_FEATURE_NTLM \
+		-DUSMB2_FEATURE_OPENDIR -DRS232_TPS=100 -o $@ $(HOSTCFILES)
+
 ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ ping.c $(OFILESNET) -lndos -lrs232if1 -create-app 
 
@@ -102,6 +110,6 @@ test-tcp: test/tcp-c.bin test/tcp-asm.bin
 test-z80: test-ip test-slip test-tcp test-stack
 
 clean:
-	$(RM) *.o ../*.o *.tap *.bin test/*-c.bin test/*-asm.bin test/*-c.out test/*-asm.out
+	$(RM) *.o ../*.o *.tap *.bin smb2-cat-host test/*-c.bin test/*-asm.bin test/*-c.out test/*-asm.out
 
 .PHONY: all clean test-ip test-slip test-tcp test-stack test-z80

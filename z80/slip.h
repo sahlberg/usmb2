@@ -32,4 +32,7 @@ int slip_init(int baud_rate, int parity);
 void send_packet(uint8_t *p, int len);
 int recv_packet(uint8_t *p, int len, int to);
 
+/* raw.c, the link layer on a Linux host instead of SLIP */
+int raw_init(void);
+
 #endif /*_SLIP_H_ */
