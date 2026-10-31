@@ -33,7 +33,9 @@ void* calloc(size_t nmemb, size_t size)
     void* ptr;
 
     ptr = malloc(s);
-    memset(ptr, 0, s);
+    if (ptr != NULL) {
+        memset(ptr, 0, s);
+    }
 
     return ptr;
 }
@@ -51,6 +53,6 @@ char* strdup(const char* s)
 #endif /* !_IOP */
         return NULL;
     }
-    memcpy(str, s, len + 1);
+    memcpy(str, s, len);
     return str;
 }
