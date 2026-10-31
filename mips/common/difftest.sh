@@ -3,6 +3,7 @@
 #   difftest.sh <test dir> <C file, relative to usmb2/> <asm file, relative to mips/> <rename -D flags...>
 # CEXTRA: more C files (relative to usmb2/) linked into the C side, with the same renames.
 # AEXTRA: more asm files (relative to mips/) linked into the asm side.
+# TFLAGS: extra flags for t.c.
 # Builds in the ps2max/dev container with Neutrino's IOP flags, checks the asm
 # for R3000 hazards, prints both sizes and runs <test dir>/t.c under qemu-mipsel.
 set -e
@@ -23,7 +24,7 @@ CC=mipsel-none-elf-gcc
 X=
 for f in $CEXTRA; do \$CC $IOPFLAGS -I/u -c /u/\$f -o x-c-\$(basename \$f).o $RENAME; X=\"\$X x-c-\$(basename \$f).o\"; done
 for f in $AEXTRA; do \$CC $IOPFLAGS -I/u -c ../\$f -o x-a-\$(basename \$f).o; X=\"\$X x-a-\$(basename \$f).o\"; done
-\$CC $IOPFLAGS -ffreestanding -I/u -c t.c -o t.o
+\$CC $IOPFLAGS -ffreestanding -I/u ${TFLAGS} -c t.c -o t.o
 \$CC -nostdlib -static -Wl,-e,__start -Wl,--no-warn-rwx-segments ../common/start.S t.o $B-ren.o $B-asm.o \$X -o t
 mipsel-none-elf-objdump -d t > t.dis
 echo '== size (text data bss): C, then asm'
