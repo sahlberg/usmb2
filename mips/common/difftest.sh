@@ -27,8 +27,10 @@ for f in $AEXTRA; do \$CC $IOPFLAGS -I/u -c ../\$f -o x-a-\$(basename \$f).o; X=
 \$CC $IOPFLAGS -ffreestanding -I/u ${TFLAGS} -c t.c -o t.o
 \$CC -nostdlib -static -Wl,-e,__start -Wl,--no-warn-rwx-segments ../common/start.S t.o $B-ren.o $B-asm.o \$X -o t
 mipsel-none-elf-objdump -d t > t.dis
-echo '== size (text data bss): C, then asm'
-mipsel-none-elf-size $B-c.o $B-asm.o
+echo '== bytes of code + data (.text .rodata .data .bss, not .MIPS.abiflags): C, then asm'
+for o in $B-c.o $B-asm.o; do
+	mipsel-none-elf-size -A \$o | awk -v o=\$o '\$1 ~ /^\\.(text|rodata|rdata|data|sdata|bss|sbss)/ { n += \$2 } END { printf \"%6d  %s\\n\", n, o }'
+done
 "
 cd "$MIPS/$T"
 # checked on the linked program, so that jal targets in other files resolve
