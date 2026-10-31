@@ -39,6 +39,9 @@ for i, (a, op, args) in enumerate(ins):
     if op in LOADS and args:
         d = args[0].lstrip('$')
         for n in nexts(i):
+            # an lwr/lwl pair to the same register may be back to back on MIPS-I
+            if op in ('lwl', 'lwr') and ins[n][1] in ('lwl', 'lwr') and ins[n][1] != op and ins[n][2][:1] == args[:1]:
+                continue
             if d != 'zero' and d in regs_read(ins[n][1], ins[n][2]):
                 print('load hazard at %x: %s %s -> %x: %s %s' % (a, op, ','.join(args), ins[n][0], ins[n][1], ','.join(ins[n][2]))); bad += 1
     if op in ('mfhi', 'mflo'):

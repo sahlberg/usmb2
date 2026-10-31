@@ -20,11 +20,11 @@ podman run --rm $PODMAN_ARGS -v "$TOP":/u:Z -w "/u/mips/$T" "$IMG" sh -c "
 set -e
 CC=mipsel-none-elf-gcc
 \$CC $IOPFLAGS -I/u -c /u/$CSRC -o $B-c.o
-\$CC $IOPFLAGS -I/u -c ../$ASRC -o $B-asm.o
+\$CC $IOPFLAGS -Wa,--fatal-warnings -I/u -c ../$ASRC -o $B-asm.o
 \$CC $IOPFLAGS -I/u -c /u/$CSRC -o $B-ren.o $RENAME
 X=
 for f in $CEXTRA; do \$CC $IOPFLAGS -I/u -c /u/\$f -o x-c-\$(basename \$f).o $RENAME; X=\"\$X x-c-\$(basename \$f).o\"; done
-for f in $AEXTRA; do \$CC $IOPFLAGS -I/u -c ../\$f -o x-a-\$(basename \$f).o; X=\"\$X x-a-\$(basename \$f).o\"; done
+for f in $AEXTRA; do \$CC $IOPFLAGS -Wa,--fatal-warnings -I/u -c ../\$f -o x-a-\$(basename \$f).o; X=\"\$X x-a-\$(basename \$f).o\"; done
 \$CC $IOPFLAGS -ffreestanding -I/u ${TFLAGS} -c t.c -o t.o
 \$CC -nostdlib -static -Wl,-e,__start -Wl,--no-warn-rwx-segments ../common/start.S t.o $B-ren.o $B-asm.o \$X -o t
 mipsel-none-elf-objdump -d -z t > t.dis
