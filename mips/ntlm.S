@@ -7,15 +7,10 @@
  * int ntlm_generate_auth(struct usmb2_context *usmb2, char *username, char *password);
  *
  * Differences from ntlm.c:
- *  - The TargetInfo length is 16 bits. ntlm.c keeps it in a (signed on
- *    MIPS) char, which breaks for a TargetInfo of 128 bytes or more.
- *  - All copies run from the end backwards. Every destination is above its
- *    source, so this is memmove and not memcpy: a TargetInfo longer than
- *    144 + 2 * strlen(username) bytes overlaps its new place.
  *  - The response is filled in from the top down, so every source is read
- *    before it is overwritten. ntlm.c copies the server challenge first,
- *    into a TargetInfo longer than 116 + 2 * strlen(username) - the offset of
- *    the CHALLENGE in buf (8 from servers, so 108 + 2 * strlen(username)).
+ *    before it is overwritten, and all copies run from the end backwards
+ *    (every destination is above its source). This gives the same result
+ *    as ntlm.c's order and memmoves, also for a TargetInfo of 100+ bytes.
  *  - The UTF-16 password is built in place in the MD4 context's buffer and
  *    hashed with one MD4Update, so the password must be at most 32
  *    characters (usmb2->password[32] holds at most 31).

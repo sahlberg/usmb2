@@ -1,5 +1,4 @@
 *.o
 *.dis
 test_*/t
-test_ntlm/ntlm-ref.c
 *.core
