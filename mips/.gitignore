@@ -2,3 +2,4 @@
 *.dis
 test_*/t
 *.core
+test_compat/compat-ref.c
