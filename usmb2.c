@@ -451,30 +451,17 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
         return 0;
 }
 
-/* OPEN */
-uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
+/* CREATE. Returns the file id in a buffer of size bytes, or NULL.
+ * del is the third byte of the desired access and the second byte of the
+ * create options, for DELETE and DELETE_ON_CLOSE.
+ */
+static uint8_t *usmb2_create(struct usmb2_context *usmb2, const char *name,
+                             uint8_t da, uint8_t di, uint8_t co, uint8_t fa,
+                             uint16_t del, int size)
 {
         int len;
-        uint8_t *ptr, da, di, co, fa;
+        uint8_t *ptr;
 
-        da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
-        di = 0x01; /* create disposition: open  if file exist open it, else fail */
-        fa = 0x00; /* file attributes: */
-        co = 0x40; /* create options: normal file */
-#ifdef USMB2_FEATURE_WRITE
-        if (mode == O_RDWR) {
-                da = 0x8b; /* desided access : READ, WRITE, READ EA, READ ATTRIBUTES */
-                di = 0x03; /* create disposition: open the file if it exists, otherwise create it */
-        }
-#endif /* USMB2_FEATURE_WRITE */
-#ifdef USMB2_FEATURE_OPENDIR
-        if (mode & O_DIRECTORY) {
-                da = 0x81; /* desided access: READ, READ ATTRIBUTES */ //qqq can we skip this???
-                fa = 0x10; /* file attributes: DIRECTORY */
-                co = 0x01; /* create options: directory */
-        }
-#endif /* USMB2_FEATURE_OPENDIR */
-        
         memset(usmb2->buf, 0, sizeof(usmb2->buf));
         /*
          * Command header
@@ -485,6 +472,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         usmb2->buf[4 + 64 +  4] = 0x02;
         /* desired access */
         usmb2->buf[4 + 64 + 24] = da;
+        usmb2->buf[4 + 64 + 26] = del;
         /* file attributes */
         usmb2->buf[4 + 64 + 28] = fa;
         /* share access : READ, WRITE */
@@ -493,6 +481,7 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
         usmb2->buf[4 + 64 + 36] = di;
         /* create options */
         usmb2->buf[4 + 64 + 40] = co;
+        usmb2->buf[4 + 64 + 41] = del >> 8;
         /* name offset */
         usmb2->buf[4 + 64 + 44] = 0x78;
 #ifdef USMB2_FEATURE_UNICODE
@@ -514,16 +503,39 @@ uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
                    return NULL;
         }
 
-        if (mode & O_DIRECTORY) {
-                ptr = calloc(1, 16 + MAX_DIR_SIZE);
-        } else {
-                ptr = malloc(16);
-        }
+        ptr = calloc(1, size);
 
         if (ptr) {
                 memcpy(ptr, &usmb2->buf[64], 16);
         }
         return ptr;
+}
+
+/* OPEN */
+uint8_t *usmb2_open(struct usmb2_context *usmb2, const char *name, int mode)
+{
+        uint8_t da, di, co, fa;
+
+        da = 0x89; /* desided access : READ, READ EA, READ ATTRIBUTES */
+        di = 0x01; /* create disposition: open  if file exist open it, else fail */
+        fa = 0x00; /* file attributes: */
+        co = 0x40; /* create options: normal file */
+#ifdef USMB2_FEATURE_WRITE
+        if (mode == O_RDWR) {
+                da = 0x8b; /* desided access : READ, WRITE, READ EA, READ ATTRIBUTES */
+                di = 0x03; /* create disposition: open the file if it exists, otherwise create it */
+        }
+#endif /* USMB2_FEATURE_WRITE */
+#ifdef USMB2_FEATURE_OPENDIR
+        if (mode & O_DIRECTORY) {
+                da = 0x81; /* desided access: READ, READ ATTRIBUTES */ //qqq can we skip this???
+                fa = 0x10; /* file attributes: DIRECTORY */
+                co = 0x01; /* create options: directory */
+        }
+#endif /* USMB2_FEATURE_OPENDIR */
+
+        return usmb2_create(usmb2, name, da, di, co, fa, 0,
+                            (mode & O_DIRECTORY) ? 16 + MAX_DIR_SIZE : 16);
 }
 
 #ifdef USMB2_FEATURE_OPENDIR
