@@ -1,2 +1,2 @@
-/data/sahlberg/usmb2/z80/asm/test_usmb2/test.c:240:37: warning: Implicit definition of function 'usmb2_negotiateprotocol' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
-/data/sahlberg/usmb2/z80/asm/test_usmb2/test.c:243:32: warning: Implicit definition of function 'usmb2_sessionsetup' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
+/data/sahlberg/usmb2-z80tcpip/z80/asm/test_usmb2/test.c:246:37: warning: Implicit definition of function 'usmb2_negotiateprotocol' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
+/data/sahlberg/usmb2-z80tcpip/z80/asm/test_usmb2/test.c:249:32: warning: Implicit definition of function 'usmb2_sessionsetup' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]

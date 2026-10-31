@@ -8,16 +8,20 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include "usmb2.h"
+#include "ip.h"
 #include "tcp.h"
+#include "usmb2.h"
 
 static uint8_t txb[1024];
 static uint8_t rxb[1024];
+static tcp_context_t g_tcp = { .ip = { .pkt_size = sizeof(rxb) } };
 
 static struct usmb2_context *g_ctx;   /* for relative pointer printing */
 
-uint8_t *tcp_tx_buffer(void) { return txb; }
-uint8_t *tcp_rx_buffer(void) { return rxb; }
+static const char *tcp_arg(tcp_context_t *tcp) { return tcp == &g_tcp ? "ctx" : "BAD"; }
+
+uint8_t *tcp_tx_buffer(tcp_context_t *tcp) { if (tcp != &g_tcp) printf("TX BAD\n"); return txb; }
+uint8_t *tcp_rx_buffer(tcp_context_t *tcp) { if (tcp != &g_tcp) printf("RX BAD\n"); return rxb; }
 
 /* ---------- output helpers ---------- */
 static void hex(uint8_t *p, int n)
@@ -65,11 +69,11 @@ static uint8_t last_cmd;
 static int g_maskmid;         /* hide wire mid (sccz80 l_i64_dec bug, see README) */
 static void set_status(uint32_t s) { st_q[0] = s; st_n = 1; st_i = 0; }
 
-int tcp_send(uint8_t *data, int len)
+int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
 {
         uint8_t save[4];
         if (g_maskmid) { memcpy(save, &txb[28], 4); memset(&txb[28], 0x55, 4); }
-        printf("SEND data=%s len=%d hash=%04x\n", data ? "PTR" : "NULL", len, hash(txb, len));
+        printf("SEND %s data=%s len=%d window=%d hash=%04x\n", tcp_arg(tcp), data ? "PTR" : "NULL", len, window, hash(txb, len));
         hex(txb, len);
         if (g_maskmid) memcpy(&txb[28], save, 4);
         last_cmd = txb[16];
@@ -150,11 +154,11 @@ static void build_reply(void)
         rxb[0] = 0; rxb[1] = 0; rxb[2] = body >> 8; rxb[3] = body;
 }
 
-int tcp_recv(void)
+int tcp_recv(tcp_context_t *tcp, int len)
 {
         int m = 1;
         if (rs_i < rs_n) m = recv_script[rs_i++];
-        printf("RECV mode %d\n", m);
+        printf("RECV %s len=%d mode %d\n", tcp_arg(tcp), len, m);
         switch (m) {
         case 0: return 0;
         case 2: build_reply(); st_i--; rxb[29] ^= 0x40; return 100;
@@ -216,6 +220,8 @@ int main(void)
         int rc;
         int32_t r32;
         uint64_t off;
+
+        usmb2_tcp = &g_tcp;
 
         printf("== init fail at negotiate\n");
         set_status(0xc0000022);

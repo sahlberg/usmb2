@@ -48,6 +48,13 @@ struct usmb2_context {
         uint8_t buf[USMB2_SIZE];
 };
 
+#if defined(Z80)
+/* The TCP connection to the server, see z80/README.tcpip. Set it after
+ * tcp_connect() and before usmb2_init_context(), which then does not use ip.
+ */
+extern struct tcp_context *usmb2_tcp;
+#endif
+
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password);
 
 /* Connect to a share. The unc must be of the form \\ip-address\share-name

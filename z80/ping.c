@@ -30,9 +30,15 @@
 #include "ip.h"
 #include "icmp.h"
 
+uint8_t icmp_buf[ICMP_BUF_SIZE];
+ip_context_t ip_ctx = {
+        .pkt_size = ICMP_BUF_SIZE,
+        .pkt = icmp_buf,
+};
+
+
 int main(void)
 {
-        ip_context_t ip_ctx;
         int rc;
         int ipi[4];
         uint8_t *ip;

@@ -25,6 +25,7 @@
 #include <arch/zx.h>
 #include <stdio.h>
 #include <rs232.h>
+#include <net/hton.h>
 
 #include "slip.h"
 #include "ip.h"
@@ -33,6 +34,16 @@
 #include "usmb2.h"
 
 char buf[256];
+
+/* ip hdr + tcp hdr + smb2 hdr + 512 bytes of payload */
+#define BUF_SIZE (20 + 32 + 64 + 512)
+uint8_t tcp_buf[BUF_SIZE];
+tcp_context_t tcp = {
+        .ip = {
+                .pkt_size = BUF_SIZE,
+                .pkt = tcp_buf,
+        },
+};
 
 int main(void)
 {
@@ -63,7 +74,16 @@ int main(void)
         printf("\n");
 
         slip_init(RS_BAUD_19200, RS_PAR_NONE);
-        rc = tcp_connect(src, 118, dst, 445);
+        tcp.ip.saddr = src;
+        tcp.ip.daddr = dst;
+        tcp.src_port = htons(118);
+        tcp.dst_port = htons(445);
+        rc = tcp_connect(&tcp);
+        if (rc < 0) {
+                printf("failed to connect to server\n");
+                return 0;
+        }
+        usmb2_tcp = &tcp;
 
         usmb2 = usmb2_init_context(0x0b0a0a0a, "sahlberg", "otto1234"); /* 10.10.10.11 */
         if (usmb2 == NULL) {

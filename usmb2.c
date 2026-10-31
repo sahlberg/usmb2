@@ -66,6 +66,8 @@
 
 
 #if defined(Z80)
+tcp_context_t *usmb2_tcp;
+
 static int recv_pos = 0;
 
 static int recv_reply_from_socket(uint32_t wanted_mid)
@@ -76,14 +78,15 @@ static int recv_reply_from_socket(uint32_t wanted_mid)
 
         recv_pos = 0;
  again:
-        rc = tcp_recv();
+        /* Open the window for the reply, tcp_recv() clamps it to the buffer */
+        rc = tcp_recv(usmb2_tcp, usmb2_tcp->ip.pkt_size);
         if (rc < 0) {
                 return -1;
         }
         if (rc == 0) {
                 goto again;
         }
-        ptr = tcp_rx_buffer();
+        ptr = tcp_rx_buffer(usmb2_tcp);
         memcpy(&mid, &ptr[28], 4);
         mid = htole32(mid);
         if (mid != wanted_mid) {
@@ -100,7 +103,7 @@ static int send_rqst_to_socket(void)
 {
         int rc;
 
-        rc = tcp_send(NULL, send_pos);
+        rc = tcp_send(usmb2_tcp, send_pos, NULL, 0);
         send_pos = 0;
         
         return 0;
@@ -123,7 +126,7 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
 #if defined(Z80)
         uint8_t *ptr;
-        ptr = tcp_tx_buffer();
+        ptr = tcp_tx_buffer(usmb2_tcp);
 
         memcpy(&ptr[send_pos], buf, len);
         send_pos += len;
@@ -148,7 +151,7 @@ static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 { 
 #if defined(Z80)
         uint8_t *ptr;
-        ptr = tcp_rx_buffer();
+        ptr = tcp_rx_buffer(usmb2_tcp);
 
         memcpy(buf, &ptr[recv_pos], len);
         recv_pos += len;

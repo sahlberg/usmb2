@@ -45,7 +45,7 @@ int icmp_echo_request(ip_context_t *ip_ctx)
         memcpy(&ptr[22], &cs, 2);
         ip_build_and_send(ip_ctx, 20 + 16, IP_ICMP);
 
-        len = recv_packet(ptr, IP_MAX_SIZE, RS232_TPS);
+        len = recv_packet(ptr, ip_ctx->pkt_size, RS232_TPS);
         if (len == -EAGAIN) {
                 if (--retries) {
                         goto again;

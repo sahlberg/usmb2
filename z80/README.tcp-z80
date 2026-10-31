@@ -1,0 +1,203 @@
+ip-z80.asm, slip-z80.asm, tcp-z80.asm -- the stack written by hand
+==================================================================
+
+Three drop-in replacements for the objects sccz80 produces from `ip.c`,
+`slip.c` and `tcp.c`.  Same module names (`ip_c`, `slip_c`, `tcp_c`), same
+entry points, same __smallc calling conventions, so the linker cannot tell
+them apart:
+
+        make                    # links ip.o, slip.o, tcp.o
+        make Z80_ASM=1          # links ip-z80.o, slip-z80.o, tcp-z80.o
+
+One layer at a time, for bisecting a problem on real hardware, with
+`Z80_ASM_IP`, `Z80_ASM_SLIP` and `Z80_ASM_TCP`.  Each defaults to
+`Z80_ASM`, and anything other than empty or 0 turns it on:
+
+        make Z80_ASM_TCP=1              # only the TCP layer
+        make Z80_ASM=1 Z80_ASM_TCP=0    # everything except the TCP layer
+
+The `.c` files stay in the tree and remain the specification.  Read those
+to find out what the stack does; read these to find out how it is encoded.
+`icmp.c` is left alone -- it is only linked into `ping`.
+
+What it costs and what it buys
+------------------------------
+
+                        C       asm      delta
+        ip.o          463       240       -223
+        slip.o        419       277       -142   (+9 bytes bss)
+        tcp.o        2004      1163       -841   (+14 bytes bss)
+                     ----      ----      -----
+                     2886      1680      -1206
+
+        ping.bin     8352      6837      -1515
+        tcp_chat.bin 10473     9004      -1469
+        irc.bin      15610     14141     -1469
+        tiny-irc.bin  8580      7106      -1474
+
+The binaries drop more than the objects do, because the C versions also
+drag in library helpers that nothing else uses -- htonl,
+l_glong/l_plong/l_inclong, l_long_add/com/eq/ne/ult/ugt, l_gt, l_lt,
+l_lneg, memcmp_callee, and the whole l_gintNsp family.
+
+Per layer, measured on `tiny-irc.bin`:
+
+        Z80_ASM_IP=1     8344   -236
+        Z80_ASM_SLIP=1   8429   -151
+        Z80_ASM_TCP=1    7538  -1042
+        Z80_ASM=1        7106  -1474
+
+For `tiny-irc.bin` that last number is the interesting one.  Its budget is
+24000..32767 = 8768 bytes for code, data and stack; it was using 8580 of
+that, leaving 188 bytes of headroom.  It now uses 7106, leaving 1662.
+
+Where the 1206 bytes went
+-------------------------
+
+sccz80 is not a bad compiler, it just has no register allocator worth the
+name and pays for every access.  In `tcp.c`:
+
+  * Struct fields go through `l_gint` / `l_pint` / `l_glong` / `l_plong`
+    and arguments through `l_gintspsp` -- a `call` plus setup for every
+    single field.  Here IX is the frame pointer and the struct is walked
+    with HL.
+
+  * `ip_buffer(&tcp->ip, n)` is a function call in `tcp.c`.  It is
+    `ip->pkt + n`.
+
+  * The 20 byte TCP header is built with a dozen two-byte `memcpy()`s,
+    each of which is a `ld bc,2` plus `ldir`.  Here it is one walk down
+    the struct: `saddr` and `daddr` are adjacent so one `LDIR` does both,
+    the two ports are four `LDI`s, and `htonl()` of `seq` and `ack` is a
+    four byte reversed copy instead of a library call through a 32 bit
+    temporary.
+
+  * The sequence number comparisons were `l_long_eq` / `l_long_ne` /
+    `l_long_ult` / `l_long_ugt`, each with its operands marshalled onto
+    the stack.  They are now one 24 byte `cmp32` and one 9 byte `inc32`.
+
+  * `oseq` in `tcp_send()` is assigned and never read.  The compiler
+    still emits the 32 bit load and store; this does not.
+
+In `ip.c`:
+
+  * `csum()` accumulates into a `uint32_t`, so every 16 bit word of the
+    packet costs an `l_long_add` through a stack temporary.  `ip-z80.asm`
+    folds the carry back into a 16 bit accumulator as it happens -- the
+    end around carry of RFC 1071 -- and does no 32 bit arithmetic at all.
+    That is the same one's complement sum: both are the total modulo
+    65535, and the accumulator cannot overflow, because to hold 0xffff
+    *and* produce a carry an addition would have to reach 0x1ffff and the
+    largest possible is 0xffff + 0xffff = 0x1fffe.  219 bytes -> 64.
+
+  * `ip_build_and_send()` writes the header with 2 and 4 byte
+    `memcpy()`s and reads `ip->id`, `ip->saddr` and `ip->daddr` through
+    the long helpers.  Here HL walks the packet from byte 0 to byte 19
+    once, and `saddr` and `daddr` are adjacent in `ip_context_t` so one
+    LDIR does both.  227 bytes -> 160.
+
+In `slip.c`:
+
+  * `rs232_put()` and `rs232_get()` are the Interface 1 ROM's BCHAN-OUT
+    and BCHAN-IN, which destroy AF, BC, DE and HL and leave only IX and
+    IY.  sccz80 handles that by spilling everything to the stack and
+    reloading through `l_gintNsp` around every call.  `send_packet()`
+    keeps its pointer in IX instead and only writes the counter back;
+    `recv_packet()` keeps its state in file statics.
+
+  * `recv_packet()` tracks `len - received` and `&p[received]` instead of
+    `received` and `len`, so the "is there room" test is a test for zero
+    and the store needs no indexing.  262 bytes -> 154, and
+    `send_packet()` 115 -> 86.
+
+Things to know before touching them
+-----------------------------------
+
+  * **IX does not survive a call into compiler generated code.**  sccz80's
+    `l_long_add` returns with `pop ix / jp (ix)`, and `csum()` does 32 bit
+    arithmetic, so `_csum` and `_ip_build_and_send` both come back with IX
+    destroyed.  Every call to `_csum`, `_ip_build_and_send` and
+    `_recv_packet` is bracketed with `push ix` / `pop ix`.  The six entry
+    points in this file save and restore IX themselves, so they are safe
+    to call from C and safe to call each other.
+
+  * **`seq`, `ack`, `tmp` and `ptr` in `tcp_recv_timeout()` are file
+    statics, not stack locals.**  That function is re-entrant --
+    `tcp_recv_timeout -> tcp_send -> tcp_recv -> tcp_recv_timeout` -- so
+    this is only correct because of an invariant in `tcp.c`: every use of
+    those four is finished before any of the `tcp_send()` calls is made,
+    and the `goto again` path reloads all of them.  `len` is *not* static
+    for exactly that reason: it is read again after the last
+    `tcp_send()`, so it stays in the frame at `ix+6`.  If `tcp.c` ever
+    grows a use of `seq` or `ack` after a `tcp_send()`, this has to
+    become stack locals.
+
+  * `rt_ack` must stay immediately below `rt_seq` in the bss.  Reading the
+    two 32 bit numbers out of the packet is one descending 8 byte copy
+    that relies on it.
+
+  * The retry counts are countdowns, so they are off by one from the
+    `retries++ < 5` in `tcp.c`.  `tcp_send()` starts at 6 (one send plus
+    five retransmissions); `tcp_connect()` starts at 5 (five attempts).
+
+  * **`recv_packet()`'s state is static too**, for the same reason: the
+    only thing it calls is `rs232_get()`.  `rp_c` has to be zeroed on
+    entry the way `slip.c`'s `uint8_t c = 0` is -- a timed out
+    `rs232_get()` does not write to it, so a leftover END from the
+    previous packet would end the wait loop immediately.
+
+  * `RS232_TPS` and `SLIP_ESC_00` are `defc` / `IFDEF`, defaulted the way
+    the C files are and overridden from the Makefile with
+    `-Ca-DRS232_TPS=n` and `-Ca-DSLIP_ESC_00`, mirroring the `-D` the C
+    files get.  `SLIP_ESC_00` still has to match `slip-tun`.
+
+Testing
+-------
+
+        make test-z80           # or test-ip / test-slip / test-tcp
+
+Each of the three builds its test program twice -- once against the `.c`
+file, once against the `.asm` -- runs both under `z88dk-ticks` and diffs
+the output.  These are Z80 programs linked against the rest of the real
+stack, not host recompiles, so it is the actual Spectrum code that runs.
+
+`test/test_ip.c` mocks `send_packet()` and covers `csum()` over four
+patterns at every length from 0 to 41 -- all zeros, all 0xff (a carry out
+of every single addition, and a sum that has to stay 0xffff rather than
+drop to zero), a carry on every other word, and a counting pattern -- plus
+odd lengths, a real header, `ip_build_and_send()` with several lengths and
+protocols, the `ip->id` increment across both byte boundaries, that the
+payload after the header is left alone, and `ip_buffer()` including a
+negative offset.
+
+`test/test_slip.c` uses `test/stub232.asm`, which provides the four rs232
+entry points with the real calling conventions and forwards them to C
+mocks.  It covers `slip_init()` and both of its failure paths, the
+arguments it passes on, `send_packet()` with every escape and with a zero
+length, and `recv_packet()`: leading junk, escapes, empty frames, buffer
+overrun, an unknown escape, no END at all, an exact and a one-short
+timeout, and `to` = 1.  It counts `rs232_get()` calls as well as comparing
+the bytes, so the timeout arithmetic is pinned down too.
+
+There is deliberately no `len == 0` case for `recv_packet()`: `slip.c`
+never returns from one, because `received` can then never become non-zero,
+so there is nothing there to differ on.
+
+`test/test_tcp.c` mocks only `slip.c` -- `send_packet()` hexdumps the
+packet, `recv_packet()` replays a scripted one -- and covers the SYN
+handshake and its failure paths, receiving data, larger TCP headers, zero
+window probes, retransmissions, RST, the four packet sanity checks, short
+packets, opening and clamping the window, sending data from an argument
+and from the tx buffer, the retransmit-and-give-up path, bare ACKs, and
+both buffer accessors.  Every sent packet is compared byte for byte,
+including the checksum, and so is the resulting connection state.
+
+The one thing it does not pin down is the source port after a failed
+`tcp_connect()`, because that is seeded from the Z80 `R` register and the
+two versions do not execute the same number of instructions.  Those
+scenarios compare the return code and the number of packets instead.
+
+These need z88dk on the PATH; `make test` deliberately does not, which is
+why they are separate targets.  Note `z88dk-ticks` segfaults if the binary
+it is given has no dot in its filename -- it calls `strcasecmp()` on the
+result of `strchr(name, '.')` -- hence the `.bin` suffixes.

@@ -31,18 +31,17 @@
 #define IP_TCP  6
 #define IP_UDP 17
 
-/* ip hdr + tcp hdr + smb2 hdr + 512 bytes of payload */
-#define IP_MAX_SIZE (20+32+64+512)
-
 typedef struct ip_context {
         uint32_t saddr;
         uint32_t daddr;
-        uint8_t pkt[IP_MAX_SIZE];
+        uint16_t pkt_size;
+        uint16_t id;
+        uint8_t *pkt;
 } ip_context_t;
 
 uint16_t csum(uint16_t *ptr, int nbytes);
-uint8_t *ip_buffer(ip_context_t *ctx, int offset);
+uint8_t *ip_buffer(ip_context_t *ip, int offset);
 
-void ip_build_and_send(ip_context_t *ctx, uint16_t total_len, uint8_t proto);
+void ip_build_and_send(ip_context_t *ip, uint16_t total_len, uint8_t proto);
 
 #endif /*_IP_H_ */

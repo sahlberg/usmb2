@@ -27,6 +27,16 @@
 
 #include <stdint.h>
 
+/*
+ * Size of a buffer required to ICMP traffic
+ *
+ * 20: ip header
+ *  8: icmp heaer
+ * 20: ip header
+ * 64: up to 64 bytes of original datagram
+ */
+#define ICMP_BUF_SIZE (20+8+20+64)
+
 #define ICMP_TYPE_ECHO_REPLY    0
 #define ICMP_TYPE_ECHO          8
 

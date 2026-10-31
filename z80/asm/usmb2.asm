@@ -54,6 +54,7 @@
         SECTION code_compiler
 
         PUBLIC  _usmb2_init_context
+        PUBLIC  _usmb2_tcp
         PUBLIC  _usmb2_negotiateprotocol
         PUBLIC  _usmb2_sessionsetup
         PUBLIC  _usmb2_treeconnect
@@ -689,7 +690,10 @@ br3:    inc     (hl)                    ; message_id++
         inc     hl
         jr      z,br3
         ;; transmit
+        ld      hl,(_usmb2_tcp)
+        push    hl
         call    _tcp_tx_buffer
+        pop     bc
         ex      de,hl
         ld      hl,(v_buf)
         pop     bc                      ; hdrlen
@@ -697,20 +701,36 @@ br3:    inc     (hl)                    ; message_id++
         pop     bc                      ; odc
         ld      hl,(ARG+10)             ; outdata (N7: never NULL)
         call    copy
-        ld      hl,0
+        ld      hl,(_usmb2_tcp)
         ex      (sp),hl
-        push    hl                      ; tcp_send(NULL, txlen)
+        push    hl
+        ld      hl,0
+        push    hl
+        push    hl                      ; tcp_send(usmb2_tcp, txlen, NULL, 0)
         call    _tcp_send
         pop     hl
         pop     hl
+        pop     hl
+        pop     hl
         ;; receive until the message id matches (or tcp_recv() < 0)
-br5:    call    _tcp_recv
+br5:    ld      hl,(_usmb2_tcp)
+        push    hl
+        ld      bc,8
+        add     hl,bc
+        ld      a,(hl)
+        inc     hl
+        ld      h,(hl)
+        ld      l,a
+        push    hl                      ; tcp_recv(usmb2_tcp, ip.pkt_size)
+        call    _tcp_recv
+        pop     bc
+        pop     bc
         bit     7,h
         jr      nz,br7
         ld      a,h
         or      l
         jr      z,br5
-        call    _tcp_rx_buffer
+        call    rxbuf
         ld      de,28
         add     hl,de
         ex      de,hl
@@ -723,7 +743,7 @@ br6:    ld      a,(de)
         inc     hl
         inc     de
         djnz    br6
-br7:    call    _tcp_rx_buffer
+br7:    call    rxbuf
         inc     hl
         inc     hl
         ld      b,(hl)
@@ -823,7 +843,17 @@ prog_cl:    defb 68,$18, 1,1, $ff
 ENDIF
 prog_rw:    defb 68,$31, $ff
 
+;; HL = tcp_rx_buffer(usmb2_tcp)
+        SECTION code_compiler
+rxbuf:  ld      hl,(_usmb2_tcp)
+        push    hl
+        call    _tcp_rx_buffer
+        pop     bc
+        ret
+
         SECTION bss_compiler
+_usmb2_tcp:
+        defs    2
 ARG:    defs    20
 v_buf:  defs    2
 v_cic:  defs    1                       ; must be followed by v_cmd

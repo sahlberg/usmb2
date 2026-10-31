@@ -27,11 +27,30 @@
 
 #include <stdint.h>
 
-int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port);
-int tcp_send(uint8_t *data, int len);
-int tcp_recv(void);
+/* Used by tcp_recv to indicate the other side returned RST */
+#define ERESET 20
 
-uint8_t *tcp_rx_buffer(void);
-uint8_t *tcp_tx_buffer(void);
+typedef struct tcp_context {
+        ip_context_t ip;
+        /* Port numbers in network byte order, not host order,
+         * so we can check the src/dst
+         * ports of received packets by a simple memcmp().
+         * The ordering of dst_port/src_port is important.
+         */
+        uint16_t dst_port;
+        uint16_t src_port;
+        uint32_t seq;
+        uint32_t ack;
+        uint8_t ths;  /* most recent data segment tcp header size */
+} tcp_context_t;
+
+
+int tcp_connect(tcp_context_t *tcp);
+int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window);
+int tcp_recv(tcp_context_t *tcp, int len);
+int tcp_recv_timeout(tcp_context_t *tcp, int len, int to);
+
+uint8_t *tcp_rx_buffer(tcp_context_t *tcp);
+uint8_t *tcp_tx_buffer(tcp_context_t *tcp);
 
 #endif /*_TCP_H_ */

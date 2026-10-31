@@ -1,9 +1,17 @@
 A tiny TCP/IP stack for Z80
 ===========================
 Or calling it a TCPIP stack might be a stretch.
-It is something that under favorable conditions
-have some degree of interoperability with a TCPIP
+It is a half-duplex stack that under favorable conditions
+has some degree of interoperability with a TCPIP
 peer.
+Half-duplex as in it can either receive data or it can
+transmit data but not both at the same time and using a single
+shared buffer for both RX and TX.
+
+(If your stack is picky about the peer playing games with the advertized
+ window you are not going to have a good time talking to this stack.
+ But it is small, so there is that.)
+ 
 
 It is designed to be as small as possible but still capable to
 exchange data with a TCP endpoint.
@@ -34,13 +42,63 @@ ip.c ip.h       # Craft IP heaer for sending packets
 icmp.c icmp.h   # If you want to send icmp packets, otherwise skip these
 tcp.c tcp.h     # "tcp" layer for sending/receiving data on a "tcp socket"
 
+slip-z80.asm    # The same three layers written by hand in Z80 assembler.
+ip-z80.asm      # Optional, see below.
+tcp-z80.asm
+
+
+Z80_ASM=1
+=========
+Hand written Z80 assembler versions of the slip, ip and tcp layers are
+included. They are drop-in replacements - same entry points, same calling
+conventions - and are built instead of the compiler output with :
+
+  make Z80_ASM=1
+
+They are the same code, just encoded better than sccz80 manages :
+
+                 compiled      asm     saved
+  ip.o                 463      240      -223
+  slip.o               419      277      -142   (+9 bytes of bss)
+  tcp.o               2004     1163      -841   (+14 bytes of bss)
+                      ----     ----     -----
+                      2886     1680     -1206
+
+A whole program shrinks by rather more than that, around 1500 bytes,
+because the compiled version also pulls in library helpers that nothing
+else needs - the long arithmetic routines, htonl, memcmp and the stack
+access helpers. For example tiny-irc.bin, which has to fit in the ~8.7K a
+16K Spectrum leaves free, drops from 8580 to 7106 bytes.
+
+The .c files remain the specification. Each pair is checked against the
+other with :
+
+  make test-z80
+
+which builds both, runs them under the z80 simulator that comes with
+z88dk and diffs the bytes they put on the wire and the values they
+return. See README.tcp-z80 for the details and for the individual
+Z80_ASM_IP / Z80_ASM_SLIP / Z80_ASM_TCP switches.
+
+
+FUSE Spectrum Interface1 bug
+============================
+FUSE emulation of Interface 1 RS-232 seems to treat the value 0x00
+as an escape character:
+https://sourceforge.net/p/fuse-emulator/bugs/514/#27de
+thus we have to escape 0x00 in our SLIP implementation when building
+to run on FUSE.
+
+This means we are no longer compatible with the standard SLIP protocol
+and we need to use slip-tun with the corresponding workaround.
+
 
 SLIP
 ====
 Z80 machines do not come with network interfaces so
 this stack is built ontop of SLIP.
 SLIP is used to talk between the Z80 host and a
-linux host running a special slip endpoint (slip.tap.c)
+linux host running a special slip endpoint (slip-tun.c)
 that bridges the packets between the RS232 port
 on the Z80 machine and the outside world.
 
@@ -49,7 +107,7 @@ in that this implementation also ESCapes the 0x00
 character, a character which for example the Interface1
 on Spectrum appears to have issues with.
 Thus this is not compatible with RFC1055 endpoint
-but can only be used with slip-tap.c which contais the
+but can only be used with slip-tun.c which contains the
 same enhancement to the SLIP protocol.
 
 Slip is implemented in slip.c.
@@ -59,22 +117,107 @@ Slip is implemented in slip.c.
 =============
 Use this define when compiling for FUSE Spectrum + Interface1.
 Both the stack itself as well as slip-tun.c
+This adds the special "escape the 0x00 characters" we need on FUSE.
 
-FUSE Spectrum Interface1 bug
-----------------------------
-I think there is a bug in the FUSE emulator where it does not handle
-the byte 0x00 correctly on rx or tx.
-Rx of 0x00 is simply stripped while tx of 0x00 is replaced by the two byte
-sequence 0x00 + 0x2a.
 
-When compiling for FUSE Spectrum Interface1 you must define
-SLIP_ESC_00 as this will modify the SLIP protocol to also escape the 0x00
-characters.
-This makes it no longer compatible with standards compliant SLIP implementations
-but what can you do.
+slip-tun
+========
+slip-tun is a small utility that can act as a network bridge
+between a tun interface and the rx/tx channels from the
+spectrum serial port.
 
-Use this define when compiling for FUSE Spectrum Interface1   and hook it up
-via slip-tun.c as it has the same workaround for this issue.
+When running on an emulated system (FUSE, Spectrum48k + Interface1)
+this would be two fifos, one for RX and one for TX to the spectrum.
+For a physical spectrum48k, this would be the serial port where
+the speccy is connected to the host.
+
+Usage:
+slip-tun [-v] <tun> <rx> <tx>
+
+<rx> and <tx> are named from the spectrums point of view, i.e. the
+spectrum reads from <rx> and writes to <tx>.
+If they do not already exist they are created as fifos.
+-v logs every packet that is bridged in either direction.
+
+Example:
+--------
+Use NET.sh rather than invoking slip-tun by hand. It builds slip-tun with
+the right defines, starts it on tun0 with /tmp/rx and /tmp/tx, and - the
+part you cannot do by running slip-tun directly - sets up the host so the
+spectrum can reach anything other than 192.0.2.1. See "Reaching the outside
+world" below.
+
+# In first console :
+./NET.sh          # or ./NET.sh -v to log every packet
+
+# In a second console
+fuse --rs232-tx=/tmp/tx --rs232-rx=/tmp/rx
+
+NET.sh needs sudo, both for slip-tun itself and for the firewall rules. It
+removes the rules again when it exits, so stop it with ^C rather than
+killing it, otherwise they are left behind. Re-running it is harmless
+either way, the rules are only added if they are not already there.
+
+
+Addressing
+----------
+slip-tun brings the tun interface up and gives it the address
+192.0.2.1/24. The spectrum at the other end of the serial line is
+192.0.2.2, and this is the address the stack on the spectrum should
+use as its source address.
+Packets that arrive on the tun interface are only forwarded to the
+spectrum if they are IPv4 and addressed to 192.0.2.2. Packets coming
+back from the spectrum are injected onto the real network using a raw
+socket, which is why slip-tun needs to run as root.
+
+
+Reaching the outside world
+--------------------------
+Out of the box the spectrum can only talk to 192.0.2.1, the host end of
+the link. 192.0.2.0/24 is TEST-NET-1 and nothing on the internet will
+route a reply back to it, so to reach anything else the host has to
+forward and masquerade for us. slip-tun does not do this itself, it only
+brings the interface up - NET.sh is what installs the rules :
+
+  sysctl -w net.ipv4.ip_forward=1
+  iptables -t nat -A POSTROUTING -s 192.0.2.0/24 ! -o tun0 -j MASQUERADE
+  iptables -I FORWARD 1 -o tun0 -j ACCEPT
+  iptables -I FORWARD 1 -i tun0 -j ACCEPT
+
+The two directions are not symmetric, which is worth knowing if you ever
+have to debug this :
+
+Packets from the spectrum are not routed at all. slip-tun re-injects them
+with a raw IP_HDRINCL socket, so as far as the kernel is concerned they
+are locally generated and they only traverse OUTPUT and POSTROUTING, never
+FORWARD. POSTROUTING still sees them, which is why MASQUERADE works, but
+a FORWARD rule on its own would do nothing for this direction.
+
+The replies do take the normal path. They arrive on the uplink addressed
+to the host, conntrack undoes the masquerade back to 192.0.2.2, and the
+kernel then forwards them out tun0 - so the "-o tun0" FORWARD rule is the
+one that actually matters. The "-i tun0" rule is not needed today but is
+there in case the raw socket is ever replaced by plain routing.
+
+The FORWARD rules are inserted at the head of the chain so they win over
+any DROP that docker or libvirt may have added. Note that netfilter
+requires every hooked chain to accept: if pings out still fail, check
+whether some other nftables table has a forward chain with "policy drop",
+because an ACCEPT in the filter table cannot override that.
+
+
+Attaching and detaching
+-----------------------
+slip-tun treats the fifos as a session. FUSE opening the <rx> fifo for
+reading is what slip-tun considers a client attaching, and it logs
+"Client attached" when this happens.
+
+While no client is attached slip-tun does not write anything into the
+fifos. Packets that arrive on the tun interface in the meantime are
+read and dropped.
+
+When the client detaches, both fifos are emptied.
+
 
 
 API
@@ -102,10 +245,10 @@ The stack only supports a single TCP connection.
 -DRS232_TPS=xyz
 ---------------
 If there is no data to read rs232_get() will eventually timeout.
-We need to know how log this timeout is so that we can detect when we need to do a
-retransmission or when the application wants to abort the TCP operation.
-This define specifies how many timedout calls to rs232_get() per second and this
-will be different for every rs232 implementation.
+We need to know how long this timeout is so that we can detect when we need
+to do a retransmission or when the application wants to abort the TCP
+operation. This define specifies how many timedout calls to rs232_get() per
+second and this will be different for every rs232 implementation.
 
 For Spectrum Interface1 this should be set to 80.
 I.e. -DRS232_TPS=80
@@ -113,9 +256,19 @@ I.e. -DRS232_TPS=80
 For other serial ports you will need to etermine what this value should be.
 (It does not have to be very accurate.)
 
+The rs232_get() timeout is basically what we use as a very very crude
+clock/timer.
 
-int tcp_connect(uint32_t src, uint16_t src_port, uint32_t dst, uint16_t dst_port);
-----------------------------------------------------------------------------------
+int tcp_connect(tcp_context_t *tcp);
+------------------------------------
+@ tcp : Must be initialized :
+  tcp->ip.saddr : source ip address
+  tcp->ip.daddr : destination ip address
+  tcp->src_port : source tcp port in network byte order
+  tcp->dst_port : destination tcp port in network byte order
+Returns :
+ 0 : Success. Tcp connection is established.
+<0 : Failure.
 
 This function is used to establish a TCP connection between src/src_port and
 dst/dst_port.
@@ -124,42 +277,193 @@ the server, it will re-attempt the connection a handful of times
 with a random src_port.
 
 
-int tcp_send(uint8_t *data, int len);
+
+int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window);
+@ tcp  : Must be connected by tcp_connect()
+@ len  : Length of tcp payload to send.
+@ data : Data to send. Can be NULL if application already wrote the data
+         to the tcp buffer.
+@ window : Advertized window. Will generally be 0 unless we are ready to
+         receive data
+Returns :
+ 0 : Success. All data sent and was ACKed by the peer.
+<0 : Failure.
 -------------------------------------
 Send len amount of data to the server and wait for the server to ACK the data.
 Will retransmit the data a few times if the data has not been ACKed after ~1s.
 
 Data can be NULL, for example if the application has already written
-the PDU directly into the network buffer.
+the PDU directly into the tcp buffer.
 
-See usmb2.c for an example of writing directly into the tcp buffer in the network
-stack and calling tcp_send(NULL, len);
-This saves a memcpy() inside tcp_send(),
+One caveat on that. If tcp_send() has to retransmit it re-sends whatever
+is in the packet buffer, and recv_packet() has been writing incoming
+packets into the front of that same buffer while we waited for the ACK.
+A data argument is copied in again on the way round so it survives; a
+payload written into tcp_tx_buffer() cannot be, so tcp_send() returns -1
+rather than retransmit one. Such a caller gets a single attempt and has
+to rebuild and resend for itself; pass data if you want the retries.
+
+With the window closed the only thing that can arrive while tcp_send()
+waits is an ACK, so a request/response protocol never sees this. IRC is
+the outlier: the server talks unsolicited.
+
+Window is the advertized window to send. It will generally be 0 when sending
+data or a pure ACK.
+Window>0 is used temporarily during receival of data in tcp_recv()
 
 
-int tcp_recv(void);
+
+
+int tcp_recv(tcp_context_t *tcp, int len);
+@ tcp  : Must be connected by tcp_connect()
+@ len  : Maximum amount of data to receive.
+         Can be 0 if we just want to wait for an ACK.
+Returns:
+>0: Amount of data received for this TCP sesison.
+ 0: Something was received but it it did not contain data
+    for this session. It could have been an ACK.
+-EAGAIN: Timed out waiting for a reply or we did not receive an
+    ACK for the full amount of data. Try again.
+<0: Some other error.
 -------------------
 This reads and populates the network buffer with the next packet of
 TCP payload data.
-If no data has arrived after ~1s the function will timeout with -EAGAIN.
-rc==-EAGAIN   We timed out waiting for data from the server.
-              Not necessarily an error, could just be that there was
-	      no data from the server to read and process.
-rc<0          Some error occured.  This is probably not recoverable :-(
-rc==0         No payload was received. Call tcp_recv() to continue to wait.
-rc>0          We got rc bytes of TCP payload from the server.
-              tcp_buffer() can be called to find the start of the tcp buffer.
+If no packet has arrived after ~1s the function will timeout with -EAGAIN.
 
 
-uint8_t *tcp_buffer(void);
+
+int tcp_recv_timeout(tcp_context_t *tcp, int len, int to);
+@ tcp  : Must be connected by tcp_connect()
+@ len  : Maximum amount of data to receive.
+@ to   : How long to wait for a packet, counted in rs232_get() timeouts.
+         tcp_recv() is just this one called with RS232_TPS, i.e. ~1s.
+         Note that recv_packet() performs to-1 reads so a value below 2
+         does not read anything at all.
+Returns: same as tcp_recv().
+-------------------
+Same as tcp_recv() but with an explicit timeout.
+
+This is for applications that have something else to do than to sit in
+the serial port for a whole second at a time, for example a chat client
+that has to read a keyboard as well (see tcp_chat.c). Such an
+application polls with a short timeout and keeps a window open towards
+the peer between the polls, since the peer will not send us anything
+while the window is closed.
+
+Note that the serial port has no receive buffer, so anything that
+arrives while we are not inside rs232_get() is lost. An application that
+polls like this should do as little as possible between the polls and
+rely on the peer retransmitting what we missed.
+
+
+
+uint8_t *tcp_rx_buffer(tcp_context_t *tcp);
 --------------------------
-This function returns the buffer for the tcp payload.
+This function returns a pointer to the received payload.
+
+uint8_t *tcp_tx_buffer(tcp_context_t *tcp);
+--------------------------
+This function returns a pointer to the transmit payload buffer for
+applications that want to write the data straight into the buffer instead
+of passing it as a pointer to data in tcp_send().
+
 
 
 Timings/Timeouts
 ================
-On FUSE Interface1, if there is no data to read then each rs232_get() takes ~12ms.
-This can be used as a timeout to break out of the loop in tcp_recv() if there is not
-data to receive.
+On FUSE Interface1, if there is no data to read then each rs232_get() takes
+~12ms. This can be used as a timeout to break out of the loop in tcp_recv()
+if there is no data to receive.
 We possibly need to check how long rs232_get() for an idle serial port takes
 for all other interfaces as well.
+
+
+
+
+EXAMPLE UTILS
+=============
+
+ping
+====
+Ping is a simple tool to test if a host is reachable.
+You type in the ip address of the host and then the tool
+tells you if it is alive or not.
+
+
+tcp_chat
+========
+tcp_chat.c is a chat client. Point it at a
+        ncat --chat -l <port>
+on the linux side of slip-tun and you can talk to whoever else is
+connected to it. Any other line oriented tcp service works too.
+
+It asks for the ip address and the port of the server, connects, and then
+uses the bottom line of the screen as the line you type on and all the
+lines above it as the chat log.
+
+Keys:
+  ENTER           send the line
+  CAPS SHIFT + 0  erase the last character (CAPS SHIFT + 5 also works)
+  CAPS SHIFT + SYM SHIFT + C   quit
+
+Typing and receiving at the same time
+-------------------------------------
+There is no OS, no threads and no interrupts we can use here, so both
+things are done from one single polling loop.
+
+The keyboard is read with in_GetKey() which scans the keyboard ports
+directly. We can not use scanf()/fgetc_cons() while connected because
+those read the ROMs LAST-K system variable, and LAST-K is only updated by
+the 50Hz interrupt routine. rs232_get() runs with interrupts disabled for
+most of the time we are connected, so those interrupts almost never
+happen and LAST-K is as good as dead.
+in_GetKey() counts debounce and key repeat in "number of calls", so the
+in_Key* variables are tuned for the ~40 calls per second that the loop
+ends up doing.
+
+The connection is polled with tcp_recv_timeout() using a timeout of a
+couple of rs232_get() timeouts (~25ms) instead of the ~1s that tcp_recv()
+would wait, so that we get back to the keyboard often enough to not miss
+a keypress.
+
+Unlike the rest of the stack, which keeps the window closed and only
+opens it for the duration of one tcp_recv(), a chat client has to be
+ready to receive at any time. So it keeps a window open while idle and
+re-opens it every time the stack has closed it again. Since the serial
+port has no receive buffer this only works because the loop spends
+almost all of its time inside rs232_get(); whatever arrives in the gaps
+is lost and is retransmitted by the peer.
+
+The screen
+----------
+The z88dk console driver scrolls the whole screen when a newline is
+printed on the last row and it has no notion of a scrolling region. So a
+line is added to the chat log by printing it on the input row and
+following it with a newline, which lifts it up into the log and leaves
+the bottom row free for the input line to be redrawn on.
+
+Note that the +zx console is 64 columns wide by default (the 4x8 font).
+Building with "#pragma output CLIB_ZX_CONIO32 = 1" gives the normal 32
+column screen instead, in which case SCREEN_COLS in tcp_chat.c has to be
+changed to match.
+
+
+Tests
+=====
+The screen and input handling in tcp_chat.c can be tested on the host:
+
+        make test
+
+test/test_screen.c emulates the z88dk console driver (the same control
+codes, wrapping and scrolling) and #includes tcp_chat.c so that the real
+code is what is being tested. The stubs it needs for the z88dk headers
+are in test/stub/.
+
+This does not test any of the networking, only that what ends up on the
+screen is what we intended.
+
+The stack itself is tested with :
+
+        make test-z80
+
+See the Z80_ASM=1 section above.
