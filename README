@@ -111,6 +111,24 @@ For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() inste
 #define read(a,b,c) lwip_recv(a,b,c,0)
 
 
+PS2 IOP
+=======
+make -f Makefile.ps2iop, with PS2SDK set, builds usmb2man.irx: an iomanX driver for the PS2 IOP
+that provides the smb: device. It is 19 KB, and 18 KB once loaded.
+
+It has the same devctl interface as libsmb2's smb2man.irx, in ps2smb2.h:
+SMB2_DEVCTL_CONNECT connects to the share in smb://<ip-address>/<share> as the directory
+smb:/<name>, and SMB2_DEVCTL_DISCONNECT_ALL disconnects all of them.
+
+The shares support open, read, write and lseek, directory listing, getstat, mkdir, rmdir,
+remove and rename.
+Limits:
+- The server is an IP address.
+- SMB 3.0 without signing or encryption: a share that requires either does not connect.
+- Paths are shorter than 128 characters.
+- There is no chdir.
+
+
 See ps2-ubms2-cat.c for a linux example on how to use to map a share and read a file.
 
 

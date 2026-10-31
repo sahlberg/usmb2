@@ -4,10 +4,11 @@
 #include <irx.h>
 
 #include <intrman.h>
-#include <ioman.h>
+#include <iomanX.h>
 #include <ps2ip.h>
 #include <stdio.h>
 #include <sysclib.h>
 #include <sysmem.h>
+#include <thsemap.h>
 
 #endif
