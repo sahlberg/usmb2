@@ -46,7 +46,15 @@ struct dir {
 
 static struct share *shares;
 static int sema;
-static char path1[256], path2[256], unc[256];
+static char path1[256], unc[256];
+#ifdef USMB2_FEATURE_RENAME
+static char path2[256];
+#endif
+
+static int smb_dummy(void)
+{
+        return -EIO;
+}
 
 #define lock() WaitSema(sema)
 #define unlock() SignalSema(sema)
@@ -244,9 +252,8 @@ static int smb_open(iop_file_t *f, const char *name, int flags, int mode)
 {
         struct usmb2_context *u;
         struct file *file;
-        uint8_t st[56];
         char *p;
-        int rc = 0, exists;
+        int rc = 0;
 
         lock();
         u = lookup(name, path1, &p);
@@ -262,6 +269,10 @@ static int smb_open(iop_file_t *f, const char *name, int flags, int mode)
         file->usmb2 = u;
         /* O_WRONLY or O_RDWR. usmb2_open(O_RDWR) creates the file if needed */
         if (flags & O_WRONLY) {
+#if defined(USMB2_FEATURE_WRITE) && defined(USMB2_FEATURE_STAT) && defined(USMB2_FEATURE_UNLINK)
+                uint8_t st[56];
+                int exists;
+
                 if (!(flags & O_CREAT) || (flags & O_EXCL)) {
                         exists = !usmb2_stat(u, p, st);
                         if (!exists && !(flags & O_CREAT)) {
@@ -276,6 +287,9 @@ static int smb_open(iop_file_t *f, const char *name, int flags, int mode)
                 if (rc == 0) {
                         file->fid = usmb2_open(u, p, O_RDWR);
                 }
+#else
+                rc = -EROFS;
+#endif
         } else {
                 file->fid = usmb2_open(u, p, O_RDONLY);
         }
@@ -303,7 +317,9 @@ static int smb_close(iop_file_t *f)
         lock();
         usmb2_close(file->usmb2, file->fid);
         unlock();
+#ifdef USMB2_FEATURE_CLOSE
         free(file->fid);
+#endif
         free(file);
         return 0;
 }
@@ -318,7 +334,11 @@ static int smb_rw(iop_file_t *f, uint8_t *buf, int size, int write)
         while (size > 0) {
                 rc = size > MAX_IO ? MAX_IO : size;
                 if (write) {
+#ifdef USMB2_FEATURE_WRITE
                         rc = usmb2_pwrite(file->usmb2, file->fid, buf, rc, file->offset);
+#else
+                        rc = -1;
+#endif
                 } else {
                         rc = usmb2_pread(file->usmb2, file->fid, buf, rc, file->offset);
                 }
@@ -420,7 +440,9 @@ static int smb_dclose(iop_file_t *f)
                 lock();
                 usmb2_closedir(dir->usmb2, dir->dh);
                 unlock();
+#ifdef USMB2_FEATURE_CLOSE
                 free(dir->dh);
+#endif
         }
         free(dir);
         return 0;
@@ -458,6 +480,7 @@ static int smb_dread(iop_file_t *f, iox_dirent_t *de)
         return 1;
 }
 
+#ifdef USMB2_FEATURE_STAT
 /* st is [MS-FSCC] FileNetworkOpenInformation */
 static int smb_getstat(iop_file_t *f, const char *name, iox_stat_t *stat)
 {
@@ -480,7 +503,11 @@ static int smb_getstat(iop_file_t *f, const char *name, iox_stat_t *stat)
         unlock();
         return rc;
 }
+#else
+#define smb_getstat smb_dummy
+#endif
 
+#ifdef USMB2_FEATURE_MKDIR
 static int smb_mkdir(iop_file_t *f, const char *name, int mode)
 {
         struct usmb2_context *u;
@@ -495,7 +522,11 @@ static int smb_mkdir(iop_file_t *f, const char *name, int mode)
         unlock();
         return rc;
 }
+#else
+#define smb_mkdir smb_dummy
+#endif
 
+#ifdef USMB2_FEATURE_UNLINK
 static int smb_delete(const char *name, int is_dir)
 {
         struct usmb2_context *u;
@@ -520,7 +551,12 @@ static int smb_rmdir(iop_file_t *f, const char *name)
 {
         return smb_delete(name, 1);
 }
+#else
+#define smb_remove smb_dummy
+#define smb_rmdir smb_dummy
+#endif
 
+#ifdef USMB2_FEATURE_RENAME
 static int smb_rename(iop_file_t *f, const char *oldname, const char *newname)
 {
         struct usmb2_context *u, *u2;
@@ -538,6 +574,9 @@ static int smb_rename(iop_file_t *f, const char *oldname, const char *newname)
         unlock();
         return rc;
 }
+#else
+#define smb_rename smb_dummy
+#endif
 
 static int smb_init(iop_device_t *dev)
 {
@@ -554,11 +593,6 @@ static int smb_deinit(iop_device_t *dev)
         return 0;
 }
 
-static int smb_dummy(void)
-{
-        return -EIO;
-}
-
 static iop_device_ops_t smb_ops = {
         &smb_init,
         &smb_deinit,
@@ -569,15 +603,15 @@ static iop_device_ops_t smb_ops = {
         &smb_write,
         &smb_lseek,
         (void *)&smb_dummy, /* ioctl */
-        &smb_remove,
-        &smb_mkdir,
-        &smb_rmdir,
+        (void *)smb_remove,
+        (void *)smb_mkdir,
+        (void *)smb_rmdir,
         &smb_dopen,
         &smb_dclose,
         &smb_dread,
-        &smb_getstat,
+        (void *)smb_getstat,
         (void *)&smb_dummy, /* chstat */
-        &smb_rename,
+        (void *)smb_rename,
         (void *)&smb_dummy, /* chdir */
         (void *)&smb_dummy, /* sync */
         (void *)&smb_dummy, /* mount */
