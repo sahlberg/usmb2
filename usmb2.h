@@ -17,9 +17,10 @@
  * USMB2_FEATURE_OPENDIR : Adds support for opendir/readdir
  * USMB2_FEATURE_UNICODE : Adds support for unicode share and filenames
  * USMB2_FEATURE_STAT  : Adds usmb2_stat()
+ * USMB2_FEATURE_MKDIR : Adds usmb2_mkdir()
  * The ones below USMB2_FEATURE_UNICODE need, and enable, USMB2_FEATURE_CLOSE.
  */
-#if defined(USMB2_FEATURE_STAT)
+#if defined(USMB2_FEATURE_STAT) || defined(USMB2_FEATURE_MKDIR)
 #ifndef USMB2_FEATURE_CLOSE
 #define USMB2_FEATURE_CLOSE
 #endif
@@ -83,5 +84,10 @@ int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid);
  */
 int usmb2_stat(struct usmb2_context *usmb2, const char *name, uint8_t *st);
 #endif /* USMB2_FEATURE_STAT */
+
+#ifdef USMB2_FEATURE_MKDIR
+/* Creates a directory. Fails if it already exists. */
+int usmb2_mkdir(struct usmb2_context *usmb2, const char *name);
+#endif /* USMB2_FEATURE_MKDIR */
 
 #endif /* !_USMB2_H_ */

@@ -704,6 +704,22 @@ int usmb2_stat(struct usmb2_context *usmb2, const char *name, uint8_t *st)
 }
 #endif /* USMB2_FEATURE_STAT */
 
+#ifdef USMB2_FEATURE_MKDIR
+int usmb2_mkdir(struct usmb2_context *usmb2, const char *name)
+{
+        uint8_t *fid;
+
+        /* desired access: READ ATTRIBUTES, create a new directory */
+        fid = usmb2_create(usmb2, name, 0x80, 0x02, 0x01, 0x10, 0, 16);
+        if (fid == NULL) {
+                return -1;
+        }
+        usmb2_close(usmb2, fid);
+        free(fid);
+        return 0;
+}
+#endif /* USMB2_FEATURE_MKDIR */
+
 int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         return usmb2_prw(usmb2, 8, fid, buf, NULL, count, offset);

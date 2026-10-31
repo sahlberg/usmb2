@@ -17,6 +17,8 @@ and read from files as 'Guest' but where additional features can be selectivly e
 
 -DUSMB2_FEATURE_STAT adds usmb2_stat() to get the size, times and attributes of a file or directory.
 
+-DUSMB2_FEATURE_MKDIR adds usmb2_mkdir() to create directories.
+
 -DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
 basically doubles the size of the client.
 This feature currently adds 2658bytes of code when compiled for x86_64.
@@ -75,6 +77,11 @@ stat support
 usmb2_stat() returns the [MS-FSCC] 2.4.29 FileNetworkOpenInformation of a file or directory:
 times, size and attributes. Enable with -DUSMB2_FEATURE_STAT.
 This also enables USMB2_FEATURE_CLOSE, and adds 114 bytes on top of it on x86_64.
+
+mkdir support
+-------------
+usmb2_mkdir() creates a directory, and fails if it already exists. Enable with -DUSMB2_FEATURE_MKDIR.
+This also enables USMB2_FEATURE_CLOSE, and adds 118 bytes on top of it on x86_64.
 
 
 LWIP
