@@ -653,7 +653,8 @@ rt_noadv:
         sbc     hl,de
         jr      nc,rt_done
 
-        ; if (seq < tcp->ack) return 0;   -- a retransmission
+        ; if (seq != tcp->ack) { tcp_send(tcp, 0, NULL, 0); return 0; }
+        ; -- a retransmission, or after a segment we missed
         ld      l,(ix+8)
         ld      h,(ix+9)
         ld      bc,o_ack
@@ -661,10 +662,11 @@ rt_noadv:
         ex      de,hl                   ; de = &tcp->ack
         ld      hl,rt_seq
         call    cmp32
-        jp      c,rt_ret0
-
-        ld      bc,4
-        ldir                            ; tcp->ack = seq
+        jr      z,rt_inseq
+        ld      hl,0
+        call    rt_send                 ; ACK what we have
+        jp      rt_ret0
+rt_inseq:
 
         ; if (len > 20 + 20) tcp->ack += len - 20 - tcp->ths;
         ld      l,(ix+6)

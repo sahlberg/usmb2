@@ -217,6 +217,13 @@ int main(void)
         printf("  rc=%d\n", rc);
         state();
 
+        printf("== data after a missed segment\n");
+        reset(100, 200, 20);
+        queue(26, 12345, 250, 100, TCP_ACK | TCP_PSH, 20, 10, 0x45, IP_TCP);
+        rc = tcp_recv_timeout(&tcp, 0, 5);
+        printf("  rc=%d\n", rc);
+        state();
+
         printf("== pure ack advances seq\n");
         reset(100, 200, 20);
         queue(26, 12345, 100, 175, TCP_ACK, 20, 0, 0x45, IP_TCP);

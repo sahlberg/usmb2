@@ -286,12 +286,17 @@ int tcp_recv_timeout(tcp_context_t *tcp, int len, int to)
          */
         /* Send an immediate ACK to segments containing data and close the window */
         if (len > 20 + tcp->ths) {
-                /* Sequence number has reversed so this is likely a retransmission */
-                if (seq < tcp->ack) {
+                /*
+                 * Only the next data in sequence is ours. Anything else is
+                 * a retransmission, or comes after a segment we missed:
+                 * taking it would skip the missing data for good. ACK what
+                 * we have so the peer resends what is missing.
+                 */
+                if (seq != tcp->ack) {
+                        tcp_send(tcp, 0, NULL, 0);
                         return 0;
                 }
 
-                tcp->ack = seq;
                 if (len > 20 + 20) {
                         tcp->ack += len - 20 - tcp->ths;
                 }
