@@ -99,30 +99,39 @@ static int is_root(const char *path)
         return *path == 0;
 }
 
-/* FILETIME to the date in an iox_stat_t */
+/*
+ * FILETIME to the date in an iox_stat_t, to the minute: right from 2000 to
+ * 2080. Without 64-bit division, which pulls in 3 KB of libgcc.
+ */
 static void filetime(const uint8_t *ft, unsigned char *t)
 {
+        static const uint8_t mdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
         uint64_t v;
-        uint32_t secs, z, era, doe, yoe, doy, mp, y;
+        uint32_t mins, y, m, n;
 
+        /* units of 6.7108864 seconds, since 2000-01-01 */
         memcpy(&v, ft, 8);
-        v /= 10000000;
-        secs = v % 86400;
-        /* days since 0000-03-01, from days since 1601-01-01 */
-        z = v / 86400 + 584694;
-        era = z / 146097;
-        doe = z - era * 146097;
-        yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-        doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-        mp = (5 * doy + 2) / 153;
-        y = yoe + era * 400 + (mp >= 10);
+        n = (uint32_t)(v >> 26) - 1876228809;
+        if (n > 0x7fffffff) {
+                n = 0;
+        }
+        mins = ((uint64_t)n * 480383960) >> 32;
 
+        n = mins / 1440;
+        mins %= 1440;
         t[0] = 0;
-        t[1] = secs % 60;
-        t[2] = secs / 60 % 60;
-        t[3] = secs / 3600;
-        t[4] = doy - (153 * mp + 2) / 5 + 1;
-        t[5] = mp < 10 ? mp + 3 : mp - 9;
+        t[1] = 0;
+        t[2] = mins % 60;
+        t[3] = mins / 60;
+
+        for (y = 2000; n >= (m = (y & 3) ? 365 : 366); y++) {
+                n -= m;
+        }
+        for (m = 0; n >= (uint32_t)mdays[m] + (m == 1 && !(y & 3)); m++) {
+                n -= mdays[m] + (m == 1 && !(y & 3));
+        }
+        t[4] = n + 1;
+        t[5] = m + 1;
         t[6] = y;
         t[7] = y >> 8;
 }

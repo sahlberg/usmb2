@@ -114,7 +114,7 @@ For example PS2 IOP LWIP afaik requires the use of lwip_send()/lwip_recv() inste
 PS2 IOP
 =======
 make -f Makefile.ps2iop, with PS2SDK set, builds usmb2man.irx: an iomanX driver for the PS2 IOP
-that provides the smb: device. It is 19 KB, and 18 KB once loaded.
+that provides the smb: device. It is 15 KB, and 14 KB once loaded.
 
 It has the same devctl interface as libsmb2's smb2man.irx, in ps2smb2.h:
 SMB2_DEVCTL_CONNECT connects to the share in smb://<ip-address>/<share> as the directory
