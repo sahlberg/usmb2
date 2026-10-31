@@ -25,7 +25,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef __Z88DK
 #include <net/hton.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "ip.h"
 #include "slip.h"
 

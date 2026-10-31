@@ -26,7 +26,11 @@
 #include <errno.h>    /* for EAGAIN */
 #include <stdio.h>
 #include <string.h>
+#ifdef __Z88DK
 #include <net/hton.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "ip.h"
 #include "tcp.h"
 #include "slip.h"
@@ -299,6 +303,7 @@ int tcp_recv_timeout(tcp_context_t *tcp, int len, int to)
 }
 
 
+#ifdef __Z88DK
 static int get_r_register(void) {
 #asm
         ld h,0
@@ -306,6 +311,10 @@ static int get_r_register(void) {
         ld l,a
 #endasm
 }
+#else
+/* The checksum alone has to do for randomness */
+#define get_r_register() 0
+#endif
 
 
 /* tcp_connect
