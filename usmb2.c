@@ -350,9 +350,19 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
         }
         
         /*
-         * Read padding
+         * Read padding, and anything else the server sent, into buf after the
+         * command, a buffer full at a time: a reply with more data than we
+         * asked for must not run past the end of buf.
          */
-        read_from_socket(usmb2, &usmb2->buf[commandincount], (int)spl);
+        while (spl) {
+                uint32_t n = sizeof(usmb2->buf) - commandincount;
+
+                if (n > spl) {
+                        n = spl;
+                }
+                read_from_socket(usmb2, &usmb2->buf[commandincount], (int)n);
+                spl -= n;
+        }
 
 #ifndef USMB2_FEATURE_TINY_TCP
         if (usmb2->fd < 0) {
