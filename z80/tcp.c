@@ -143,6 +143,17 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         if (tcp->seq > 1 && len == 0) {
                 return 0;
         }
+#ifndef __Z88DK
+        /*
+         * Data with an open window: the peer answers straight away and the
+         * ACK of our data comes with its answer, which tcp_recv() takes.
+         * Waiting for a bare ACK here would only wait out the peer's
+         * delayed ACK, as it has to hold its answer back otherwise.
+         */
+        if (window && len) {
+                return 0;
+        }
+#endif
 
         rc = tcp_recv(tcp, 0);
         //printf("RECV rc:%d\n", rc);        

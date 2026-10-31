@@ -138,7 +138,12 @@ static int send_rqst_to_socket(void)
 {
         int rc;
 
+#ifdef USMB2_FEATURE_REASSEMBLY
+        /* Open the window for the whole reply, which then comes at once */
+        rc = tcp_send(usmb2_tcp, send_pos, NULL, USMB2_REASSEMBLY_SIZE);
+#else
         rc = tcp_send(usmb2_tcp, send_pos, NULL, 0);
+#endif
         send_pos = 0;
         
         return 0;
