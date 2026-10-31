@@ -120,6 +120,8 @@ z80/smb2-cat.c.
 Below the IP layer is z80/slip.c, SLIP on the Spectrum Interface 1 serial port. On a Linux
 host z80/raw.c takes its place and uses raw sockets: z80/smb2-cat-host.c is an example, built
 with make -C z80 smb2-cat-host.
+On the PS2 IOP z80/ps2smap.c sends and receives ethernet frames through Neutrino's smap.irx
+and ministack.irx (https://github.com/ps2max32/neutrino), without an IOP TCP/IP stack.
 
 
 LWIP

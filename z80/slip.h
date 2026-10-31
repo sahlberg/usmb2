@@ -35,4 +35,16 @@ int recv_packet(uint8_t *p, int len, int to);
 /* raw.c, the link layer on a Linux host instead of SLIP */
 int raw_init(void);
 
+/*
+ * ps2smap.c, the link layer on the PS2 IOP, on Neutrino's smap.irx and
+ * ministack.irx. ip, mask and gw are in host order.
+ */
+int ps2smap_init(uint32_t ip, uint32_t mask, uint32_t gw);
+/*
+ * Where our TCP port is, in network order: tcp->src_port, which
+ * tcp_connect() changes when the server still has a connection on it, as
+ * after an IOP reset. Other TCP packets are dropped.
+ */
+void ps2smap_set_port(const uint16_t *port);
+
 #endif /*_SLIP_H_ */
