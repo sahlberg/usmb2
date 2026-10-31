@@ -107,6 +107,7 @@ static int is_root(const char *path)
         return *path == 0;
 }
 
+#ifdef HAVE_TIMESTAMPS
 /*
  * FILETIME to the date in an iox_stat_t, to the minute: right from 2000 to
  * 2080. Without 64-bit division, which pulls in 3 KB of libgcc.
@@ -143,6 +144,15 @@ static void filetime(const uint8_t *ft, unsigned char *t)
         t[6] = y;
         t[7] = y >> 8;
 }
+#else
+/* Every file is from 2000-01-01 00:00 */
+static void filetime(const uint8_t *ft, unsigned char *t)
+{
+        static const unsigned char d[8] = { 0, 0, 0, 0, 1, 1, 2000 & 0xff, 2000 >> 8 };
+
+        memcpy(t, d, 8);
+}
+#endif /* HAVE_TIMESTAMPS */
 
 /* times points to CreationTime, LastAccessTime and LastWriteTime */
 static void fill_stat(iox_stat_t *st, const uint8_t *times, const uint8_t *size, uint8_t attr)

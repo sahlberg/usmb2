@@ -123,8 +123,11 @@ smb:/<name>, and SMB2_DEVCTL_DISCONNECT_ALL disconnects all of them.
 The shares support open, read, write and lseek, directory listing, getstat, mkdir, rmdir,
 remove and rename. Each of these needs the usmb2 feature it uses: without USMB2_FEATURE_WRITE,
 USMB2_FEATURE_STAT, USMB2_FEATURE_MKDIR, USMB2_FEATURE_UNLINK or USMB2_FEATURE_RENAME the
-operation fails. With only -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_NTLM the driver is read-only,
-and 12 KB.
+operation fails.
+-DHAVE_TIMESTAMPS gives the files their dates, to the minute and right from 2000 to 2080.
+Without it every file is from 2000-01-01 00:00.
+With only -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_NTLM the driver is read-only, has no
+timestamps, and is 12 KB.
 Limits:
 - The server is an IP address.
 - SMB 3.0 without signing or encryption: a share that requires either does not connect.

@@ -1,8 +1,8 @@
 IOP_BIN  = usmb2man.irx
 IOP_OBJS = ps2iop-device.o ps2iop-compat.o usmb2.o ntlm.o md4c.o hmac-md5.o md5.o unicode.o imports.o
-# The smallest driver, read-only, is
+# The smallest driver, read-only and without timestamps, is
 #   -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_NTLM
-IOP_CFLAGS = -Os -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM \
+IOP_CFLAGS = -Os -DHAVE_TIMESTAMPS -DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_WRITE -DUSMB2_FEATURE_NTLM \
 	-DUSMB2_FEATURE_UNICODE -DUSMB2_FEATURE_STAT -DUSMB2_FEATURE_MKDIR \
 	-DUSMB2_FEATURE_UNLINK -DUSMB2_FEATURE_RENAME
 
