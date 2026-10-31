@@ -4,6 +4,7 @@
 # CEXTRA: more C files (relative to usmb2/) linked into the C side, with the same renames.
 # AEXTRA: more asm files (relative to mips/) linked into the asm side.
 # TFLAGS: extra flags for t.c.
+# PODMAN_ARGS: more podman options, such as -v for headers from elsewhere.
 # Builds in the ps2max/dev container with Neutrino's IOP flags, checks the asm
 # for R3000 hazards, prints both sizes and runs <test dir>/t.c under qemu-mipsel.
 set -e
@@ -15,7 +16,7 @@ IMG=${IMG:-docker.io/ps2max/dev:v20260228}
 B=$(basename "$CSRC" .c)
 # the same flags Neutrino uses for the IOP modules
 IOPFLAGS="-I/usr/local/ps2dev/ps2sdk/iop/include -I/usr/local/ps2dev/ps2sdk/common/include -D_IOP -fno-builtin -G0 -Os -msoft-float -mno-explicit-relocs -mno-check-zero-division -DUSMB2_FEATURE_NTLM ${EXTRA_CFLAGS}"
-podman run --rm -v "$TOP":/u:Z -w "/u/mips/$T" "$IMG" sh -c "
+podman run --rm $PODMAN_ARGS -v "$TOP":/u:Z -w "/u/mips/$T" "$IMG" sh -c "
 set -e
 CC=mipsel-none-elf-gcc
 \$CC $IOPFLAGS -I/u -c /u/$CSRC -o $B-c.o
