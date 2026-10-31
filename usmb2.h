@@ -18,9 +18,11 @@
  * USMB2_FEATURE_UNICODE : Adds support for unicode share and filenames
  * USMB2_FEATURE_STAT  : Adds usmb2_stat()
  * USMB2_FEATURE_MKDIR : Adds usmb2_mkdir()
+ * USMB2_FEATURE_UNLINK : Adds usmb2_unlink() and usmb2_rmdir()
  * The ones below USMB2_FEATURE_UNICODE need, and enable, USMB2_FEATURE_CLOSE.
  */
-#if defined(USMB2_FEATURE_STAT) || defined(USMB2_FEATURE_MKDIR)
+#if defined(USMB2_FEATURE_STAT) || defined(USMB2_FEATURE_MKDIR) || \
+    defined(USMB2_FEATURE_UNLINK)
 #ifndef USMB2_FEATURE_CLOSE
 #define USMB2_FEATURE_CLOSE
 #endif
@@ -89,5 +91,12 @@ int usmb2_stat(struct usmb2_context *usmb2, const char *name, uint8_t *st);
 /* Creates a directory. Fails if it already exists. */
 int usmb2_mkdir(struct usmb2_context *usmb2, const char *name);
 #endif /* USMB2_FEATURE_MKDIR */
+
+#ifdef USMB2_FEATURE_UNLINK
+/* Deletes a file (co 0x40) or an empty directory (co 0x01) */
+int usmb2_delete(struct usmb2_context *usmb2, const char *name, uint8_t co);
+#define usmb2_unlink(u, n) usmb2_delete(u, n, 0x40)
+#define usmb2_rmdir(u, n) usmb2_delete(u, n, 0x01)
+#endif /* USMB2_FEATURE_UNLINK */
 
 #endif /* !_USMB2_H_ */

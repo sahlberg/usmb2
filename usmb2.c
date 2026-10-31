@@ -720,6 +720,23 @@ int usmb2_mkdir(struct usmb2_context *usmb2, const char *name)
 }
 #endif /* USMB2_FEATURE_MKDIR */
 
+#ifdef USMB2_FEATURE_UNLINK
+int usmb2_delete(struct usmb2_context *usmb2, const char *name, uint8_t co)
+{
+        uint8_t *fid;
+        int rc;
+
+        /* desired access: DELETE, READ ATTRIBUTES. Deleted when we close it */
+        fid = usmb2_create(usmb2, name, 0x80, 0x01, co, 0x00, 0x1001, 16);
+        if (fid == NULL) {
+                return -1;
+        }
+        rc = usmb2_close(usmb2, fid);
+        free(fid);
+        return rc;
+}
+#endif /* USMB2_FEATURE_UNLINK */
+
 int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         return usmb2_prw(usmb2, 8, fid, buf, NULL, count, offset);
