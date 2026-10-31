@@ -55,6 +55,7 @@
 #define CMD_WRITE               9
 #define CMD_QUERYDIR           14
 #define CMD_QUERYINFO          16
+#define CMD_SETINFO            17
 
 #define STATUS_SUCCESS          0x00000000
 #define STATUS_MORE_PROCESSING  0xc0000016
@@ -451,6 +452,22 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
         return 0;
 }
 
+/* Writes name to ptr in UCS2 and returns its length in bytes */
+static int usmb2_put_name(uint8_t *ptr, const char *name)
+{
+#ifdef USMB2_FEATURE_UNICODE
+        return utf8_to_utf16(name, (uint16_t *)ptr) * 2;
+#else /* USMB2_FEATURE_UNICODE */
+        int len = strlen(name) * 2;
+
+        while (*name) {
+                *ptr = *name++;
+                ptr += 2;
+        }
+        return len;
+#endif /* USMB2_FEATURE_UNICODE */
+}
+
 /* CREATE. Returns the file id in a buffer of size bytes, or NULL.
  * del is the third byte of the desired access and the second byte of the
  * create options, for DELETE and DELETE_ON_CLOSE.
@@ -484,16 +501,7 @@ static uint8_t *usmb2_create(struct usmb2_context *usmb2, const char *name,
         usmb2->buf[4 + 64 + 41] = del >> 8;
         /* name offset */
         usmb2->buf[4 + 64 + 44] = 0x78;
-#ifdef USMB2_FEATURE_UNICODE
-        len = utf8_to_utf16(name, (uint16_t *)&usmb2->buf[4 + 0x78]) * 2;
-#else /* USMB2_FEATURE_UNICODE */
-        len = strlen(name) * 2;
-        ptr = &usmb2->buf[4 + 0x78];
-        while (*name) {
-                *ptr = *name++;
-                ptr += 2;
-        }
-#endif /* USMB2_FEATURE_UNICODE */
+        len = usmb2_put_name(&usmb2->buf[4 + 0x78], name);
         /* name length in bytes. i.e. 2 times the number of ucs2 characters */
         usmb2->buf[4 + 64 + 46] = len;
 
@@ -736,6 +744,44 @@ int usmb2_delete(struct usmb2_context *usmb2, const char *name, uint8_t co)
         return rc;
 }
 #endif /* USMB2_FEATURE_UNLINK */
+
+#ifdef USMB2_FEATURE_RENAME
+int usmb2_rename(struct usmb2_context *usmb2, const char *oldname, const char *newname)
+{
+        uint8_t *fid;
+        int len;
+
+        /* desired access: DELETE, READ ATTRIBUTES, of a file or a directory */
+        fid = usmb2_create(usmb2, oldname, 0x80, 0x01, 0x00, 0x00, 0x0001, 16);
+        if (fid == NULL) {
+                return -1;
+        }
+
+        memset(usmb2->buf, 0, sizeof(usmb2->buf));
+        /*
+         * Command header
+         */
+        /* struct size (16 bits) + FILE_INFO + FileRenameInformation */
+        *(uint32_t *)&usmb2->buf[4 + 64] = htole32(0x0a010021);
+        /* buffer offset */
+        usmb2->buf[4 + 64 + 8] = 0x60;
+        /* fid */
+        memcpy(&usmb2->buf[4 + 64 + 16], fid, 16);
+
+        /* FileRenameInformation: ReplaceIfExists=0, RootDirectory=0, then the new name */
+        len = usmb2_put_name(&usmb2->buf[4 + 0x60 + 20], newname);
+        usmb2->buf[4 + 0x60 + 16] = len;
+        /* buffer length */
+        *(uint16_t *)&usmb2->buf[4 + 64 + 4] = htole16(20 + len);
+
+        len = usmb2_build_request(usmb2,
+                                  CMD_SETINFO, 32 + 20 + len, 2,
+                                  NULL, 0, NULL, 0) ? -1 : 0;
+        usmb2_close(usmb2, fid);
+        free(fid);
+        return len;
+}
+#endif /* USMB2_FEATURE_RENAME */
 
 int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {

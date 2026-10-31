@@ -19,10 +19,11 @@
  * USMB2_FEATURE_STAT  : Adds usmb2_stat()
  * USMB2_FEATURE_MKDIR : Adds usmb2_mkdir()
  * USMB2_FEATURE_UNLINK : Adds usmb2_unlink() and usmb2_rmdir()
+ * USMB2_FEATURE_RENAME : Adds usmb2_rename()
  * The ones below USMB2_FEATURE_UNICODE need, and enable, USMB2_FEATURE_CLOSE.
  */
 #if defined(USMB2_FEATURE_STAT) || defined(USMB2_FEATURE_MKDIR) || \
-    defined(USMB2_FEATURE_UNLINK)
+    defined(USMB2_FEATURE_UNLINK) || defined(USMB2_FEATURE_RENAME)
 #ifndef USMB2_FEATURE_CLOSE
 #define USMB2_FEATURE_CLOSE
 #endif
@@ -98,5 +99,12 @@ int usmb2_delete(struct usmb2_context *usmb2, const char *name, uint8_t co);
 #define usmb2_unlink(u, n) usmb2_delete(u, n, 0x40)
 #define usmb2_rmdir(u, n) usmb2_delete(u, n, 0x01)
 #endif /* USMB2_FEATURE_UNLINK */
+
+#ifdef USMB2_FEATURE_RENAME
+/* Renames a file or directory. newname is a path from the root of the share.
+ * Fails if newname already exists.
+ */
+int usmb2_rename(struct usmb2_context *usmb2, const char *oldname, const char *newname);
+#endif /* USMB2_FEATURE_RENAME */
 
 #endif /* !_USMB2_H_ */

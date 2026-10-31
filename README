@@ -21,6 +21,8 @@ and read from files as 'Guest' but where additional features can be selectivly e
 
 -DUSMB2_FEATURE_UNLINK adds usmb2_unlink() and usmb2_rmdir() to delete files and directories.
 
+-DUSMB2_FEATURE_RENAME adds usmb2_rename() to rename and move files and directories.
+
 -DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
 basically doubles the size of the client.
 This feature currently adds 2658bytes of code when compiled for x86_64.
@@ -91,6 +93,12 @@ usmb2_unlink() deletes a file and usmb2_rmdir() an empty directory. Enable with 
 The file is opened with DELETE_ON_CLOSE and closed. A server may report success for a directory
 that is not empty, and leave it there.
 This also enables USMB2_FEATURE_CLOSE, and adds 113 bytes on top of it on x86_64.
+
+rename support
+--------------
+usmb2_rename() renames or moves a file or directory within the share. The new name is a path
+from the root of the share, and must not exist. Enable with -DUSMB2_FEATURE_RENAME.
+This also enables USMB2_FEATURE_CLOSE, and adds 253 bytes on top of it on x86_64.
 
 
 LWIP
