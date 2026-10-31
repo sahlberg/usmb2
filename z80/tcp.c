@@ -76,11 +76,12 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         uint8_t *ptr = ip_buffer(&tcp->ip, 20);
         uint16_t cs;
         uint32_t u32, oseq;
-        int rc, retries = 0;
+        int rc, retries = 0, hl;
 
         oseq = tcp->seq;
         //printf("FIRST\n");
  again:
+        hl = 20;
         memset(ptr, 0, 20);
         if (data) {
                 memcpy(ptr + 20, data, len);
@@ -96,6 +97,19 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         ptr[12] = 0x50;
         if (tcp->seq == 1) {
                 ptr[13] = TCP_SYN;
+#ifndef __Z88DK
+                /*
+                 * MSS option: segments that fit in our buffer. Then each
+                 * window we open gets a single segment, instead of the
+                 * peer's default of 536 bytes several at a time.
+                 */
+                ptr[12] = 0x60;
+                ptr[20] = 2;
+                ptr[21] = 4;
+                cs = htons(tcp->ip.pkt_size - 40);
+                memcpy(&ptr[22], &cs, 2);
+                hl = 24;
+#endif
         } else {
                 if (len) {
                         ptr[13] = TCP_ACK | TCP_PSH;
@@ -109,7 +123,7 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         memcpy(ptr -  8, &tcp->ip.daddr, 4);
         ptr[-4] = 0;
         ptr[-3] = IP_TCP;
-        cs = htons(20 + len);
+        cs = htons(hl + len);
         memcpy(ptr - 2, &cs, 2);
 
         /* Window */
@@ -117,11 +131,11 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         memcpy(&ptr[14], &cs, 2); 
 
         /* Checksum */
-        cs = csum((uint16_t *)&ptr[-12], 12 + 20 + len);
+        cs = csum((uint16_t *)&ptr[-12], 12 + hl + len);
         memcpy(&ptr[16], &cs, 2); 
 
         //printf("SS S:%d A:%d\n", (int)tcp->seq, (int)tcp->ack);
-        ip_build_and_send(&tcp->ip, 20 + 20 + len, IP_TCP);
+        ip_build_and_send(&tcp->ip, 20 + hl + len, IP_TCP);
         /*
          * Not a SYN and not a data segment so we don't have to wait for
          * an ACK.
