@@ -23,6 +23,9 @@ and read from files as 'Guest' but where additional features can be selectivly e
 
 -DUSMB2_FEATURE_RENAME adds usmb2_rename() to rename and move files and directories.
 
+-DUSMB2_FEATURE_TINY_TCP talks to the server through the tiny TCP/IP stack in z80/ instead
+of the sockets API.
+
 -DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
 basically doubles the size of the client.
 This feature currently adds 2658bytes of code when compiled for x86_64.
@@ -99,6 +102,21 @@ rename support
 usmb2_rename() renames or moves a file or directory within the share. The new name is a path
 from the root of the share, and must not exist. Enable with -DUSMB2_FEATURE_RENAME.
 This also enables USMB2_FEATURE_CLOSE, and adds 253 bytes on top of it on x86_64.
+
+
+Tiny TCP/IP stack
+=================
+The tiny TCP/IP stack in z80/ (from https://github.com/sahlberg/z80-tcpip) replaces the
+sockets API when usmb2 is built with -DUSMB2_FEATURE_TINY_TCP, which Z80 builds always are.
+It has a single connection and one buffer for both directions, and every SMB2 reply must fit
+in a single TCP segment.
+The program sets up the connection with tcp_connect() and hands it to usmb2 in usmb2_tcp
+before calling usmb2_init_context(), which then does not use its ip argument. See
+z80/smb2-cat.c.
+
+Below the IP layer is z80/slip.c, SLIP on the Spectrum Interface 1 serial port. On a Linux
+host z80/raw.c takes its place and uses raw sockets: z80/smb2-cat-host.c is an example, built
+with make -C z80 smb2-cat-host.
 
 
 LWIP

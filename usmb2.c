@@ -26,9 +26,6 @@
 #define le32toh(x) (x)
 #define le64toh(x) (x)
 #include <net/hton.h>
-#include "ip.h"
-#include "tcp.h"
-#include "slip.h"
 #endif
 
 #include <stdlib.h>
@@ -39,6 +36,10 @@
 #include <sys/types.h>
 
 #include "usmb2.h"
+#ifdef USMB2_FEATURE_TINY_TCP
+#include "ip.h"
+#include "tcp.h"
+#endif
 #ifdef USMB2_FEATURE_NTLM
 #include "ntlm.h"
 #endif /* USMB2_FEATURE_NTLM */
@@ -65,7 +66,7 @@
 #define MAX_DIR_SIZE 256
 
 
-#if defined(Z80)
+#ifdef USMB2_FEATURE_TINY_TCP
 tcp_context_t *usmb2_tcp;
 
 static int recv_pos = 0;
@@ -110,7 +111,7 @@ static int send_rqst_to_socket(void)
 }
 #endif
 
-#if !defined(Z80)
+#ifndef USMB2_FEATURE_TINY_TCP
 /* Closes the socket so that all further reads and writes fail at once */
 static int socket_failed(struct usmb2_context *usmb2)
 {
@@ -124,7 +125,7 @@ static int socket_failed(struct usmb2_context *usmb2)
 
 static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 {
-#if defined(Z80)
+#ifdef USMB2_FEATURE_TINY_TCP
         uint8_t *ptr;
         ptr = tcp_tx_buffer(usmb2_tcp);
 
@@ -149,7 +150,7 @@ static int write_to_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 
 static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 { 
-#if defined(Z80)
+#ifdef USMB2_FEATURE_TINY_TCP
         uint8_t *ptr;
         ptr = tcp_rx_buffer(usmb2_tcp);
 
@@ -244,7 +245,7 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
                 write_to_socket(usmb2, &usmb2->buf[0], (int)spl);
         }
 
-#if defined(Z80)
+#ifdef USMB2_FEATURE_TINY_TCP
         send_rqst_to_socket();
         
         /* Receive the full request from the TCP layer to a buffer */
@@ -304,7 +305,7 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
          */
         read_from_socket(usmb2, &usmb2->buf[commandincount], (int)spl);
 
-#if !defined(Z80)
+#ifndef USMB2_FEATURE_TINY_TCP
         if (usmb2->fd < 0) {
                 return STATUS_CONNECTION_DISCONNECTED;
         }
@@ -833,7 +834,7 @@ int usmb2_size(struct usmb2_context *usmb2, uint8_t *fid)
 struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *password)
 {
         struct usmb2_context *usmb2;
-#if !defined(Z80)
+#ifndef USMB2_FEATURE_TINY_TCP
         struct sockaddr_in sin;
         int socksize = sizeof(struct sockaddr_in);
 #endif
@@ -843,7 +844,7 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
                 return NULL;
         }
 
-#if !defined(Z80)
+#ifndef USMB2_FEATURE_TINY_TCP
         usmb2->fd = socket(AF_INET, SOCK_STREAM, 0);
 
         sin.sin_family = AF_INET;
@@ -871,7 +872,7 @@ struct usmb2_context *usmb2_init_context(uint32_t ip, char *username, char *pass
         return usmb2;
 
  failed:
-#if !defined(Z80)
+#ifndef USMB2_FEATURE_TINY_TCP
         if (usmb2->fd >= 0) {
                 close(usmb2->fd);
         }

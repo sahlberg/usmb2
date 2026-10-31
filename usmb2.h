@@ -6,6 +6,9 @@
 
 #if defined(Z80)
 #define O_DIRECTORY 0x1000
+#ifndef USMB2_FEATURE_TINY_TCP
+#define USMB2_FEATURE_TINY_TCP
+#endif
 #endif
 
 #define STATUS_END_OF_FILE       0xC0000011
@@ -16,6 +19,9 @@
  * USMB2_FEATURE_NTLM  : Adds support for NTLMv2
  * USMB2_FEATURE_OPENDIR : Adds support for opendir/readdir
  * USMB2_FEATURE_UNICODE : Adds support for unicode share and filenames
+ * USMB2_FEATURE_TINY_TCP : Talks to the server through the tiny TCP/IP stack
+ *                          in z80/ instead of the sockets API. Always on for
+ *                          Z80.
  * USMB2_FEATURE_STAT  : Adds usmb2_stat()
  * USMB2_FEATURE_MKDIR : Adds usmb2_mkdir()
  * USMB2_FEATURE_UNLINK : Adds usmb2_unlink() and usmb2_rmdir()
@@ -48,7 +54,7 @@ struct usmb2_context {
         uint8_t buf[USMB2_SIZE];
 };
 
-#if defined(Z80)
+#ifdef USMB2_FEATURE_TINY_TCP
 /* The TCP connection to the server, see z80/README.tcpip. Set it after
  * tcp_connect() and before usmb2_init_context(), which then does not use ip.
  */
