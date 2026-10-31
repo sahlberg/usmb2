@@ -8,8 +8,12 @@
 #endif
 
 #include <stdint.h>
+#if defined(_IOP)
+#include "ps2iop-compat.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
+#endif
 #include <string.h>
 #include <stddef.h>
 
