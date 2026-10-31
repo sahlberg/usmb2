@@ -500,11 +500,21 @@ breq:	addiu	$sp,$sp,-56
 	move	$a2,$s7
 	addu	$s4,$s4,$s7
 	subu	$s5,$s5,$s7
-5:	addu	$a0,$s0,$s3		/* and the rest after the command */
-	move	$a1,$s4
-	jal	memcpy
+5:	/* and the rest after the command, a buffer full at a time, as usmb2.c */
+	beqz	$s5,8f
+	li	$t0,512
+	subu	$a2,$t0,$s3
+	sltu	$t0,$s5,$a2
+	beqz	$t0,7f
+	addu	$a0,$s0,$s3
 	move	$a2,$s5
-	b	.Lbret
+7:	move	$a1,$s4
+	addu	$s4,$s4,$a2
+	jal	memcpy
+	subu	$s5,$s5,$a2
+	b	5b
+	nop
+8:	b	.Lbret
 	move	$v0,$s1
 .Lbfail:
 	li	$v0,STATUS_INTERNAL

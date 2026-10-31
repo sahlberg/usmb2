@@ -1,4 +1,4 @@
-/* Differential test: ps2iop-compat.c, with the fixes (renamed c_*), against mips/ps2iop-compat.S */
+/* Differential test: ps2iop-compat.c (renamed c_*) against mips/ps2iop-compat.S */
 #include "../common/libt.h"
 void *c_malloc(int); void c_free(void *); void *c_calloc(size_t, size_t); char *c_strdup(const char *);
 void *malloc(int); void free(void *); void *calloc(size_t, size_t); char *strdup(const char *);

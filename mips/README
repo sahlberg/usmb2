@@ -1,0 +1,33 @@
+Hand-written MIPS-I asm for the PS2 IOP, size optimised
+=======================================================
+
+Drop-in replacements for the usmb2 C sources as Neutrino builds them into
+smb_fhi.irx and smb_ioman.irx (USMB2_FEATURE_TINY_TCP, _REASSEMBLY, _NTLM):
+
+  md5.S           md5.c            ip.S             z80/ip.c
+  md4c.S          md4c.c           tcp.S            z80/tcp.c
+  hmac-md5.S      hmac-md5.c       ps2smap.S        z80/ps2smap.c
+  ntlm.S          ntlm.c           usmb2.S          usmb2.c
+                                   ps2iop-compat.S  ps2iop-compat.c
+
+Together they take about 3.4 KB off each module (smb_fhi: 22864 -> 19500
+bytes of code, data and bss). Each file says at the top how it differs
+from its C, which no caller sees; mostly they need their buffers 4-byte
+aligned, as Neutrino's are. tcp.S relies on ip.S's csum() leaving most
+registers alone, so use the two together.
+
+Building them in Neutrino: compile them in place of the C objects with the
+same flags, for example in iop/smb/Makefile:
+
+  USMB2_ASM_OBJS = md5 md4c hmac-md5 ntlm ip tcp ps2smap usmb2 ps2iop-compat
+  $(addprefix $(IOP_OBJS_DIR),$(addsuffix .o,$(USMB2_ASM_OBJS))): $(IOP_OBJS_DIR)%.o: $(USMB2_DIR)/mips/%.S
+  	$(DIR_GUARD)
+  	$(IOP_C_COMPILE) -c $< -o $@
+
+Testing: test_<file>/run.sh builds the C (its symbols renamed c_*) and the
+asm in the docker.io/ps2max/dev podman image with Neutrino's flags, prints
+both sizes, checks the asm for the R3000 load-delay and HI/LO hazards that
+qemu does not emulate (common/hazard.py), and runs a differential test
+under qemu-mipsel-static that calls both with the same random input and
+compares everything they do. test_ps2smap needs Neutrino's headers: set
+NEUTRINO to its checkout if it is not ../PS2/neutrino-smb.

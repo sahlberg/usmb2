@@ -4,11 +4,8 @@
  * optimised: malloc/free/calloc/strdup on the IOP's sysmem, with interrupts
  * suspended around AllocSysMemory and FreeSysMemory.
  *
- * Differences from ps2iop-compat.c:
- *  - calloc() does not memset() when the allocation failed; ps2iop-compat.c
- *    cleared size bytes at address 0 then.
- *  - strdup() copies strlen() + 1 bytes; ps2iop-compat.c copied one more,
- *    past the end of what it had allocated.
+ * It does the same as ps2iop-compat.c, which since 7171d08 has calloc() not
+ * memset() a failed allocation and strdup() copy strlen() + 1 bytes.
  */
 	.set	noreorder
 

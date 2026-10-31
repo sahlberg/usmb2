@@ -74,11 +74,8 @@ static void put32be(uint8_t *p, uint32_t v) { p[0] = v >> 24; p[1] = v >> 16; p[
 static void reply(uint32_t mid, int cmd, uint32_t want)
 {
 	if (want > 2048) want = 2048;
-	/*
-	 * No more data than asked for: both usmb2.c and usmb2.S copy what is
-	 * left over into buf, which a longer reply overruns.
-	 */
-	int n = cmd == 8 ? 16 + (g_rand() % 4 ? want : g_rand() % (want + 1)) : g_rand() % 3 ? 16 + g_rand() % 120 : g_rand() % 400;
+	/* sometimes more data than asked for: what is left over goes into buf a buffer full at a time */
+	int n = cmd == 8 ? 16 + (g_rand() % 4 ? want : g_rand() % 2048) : g_rand() % 3 ? 16 + g_rand() % 120 : g_rand() % 2000;
 	uint8_t *p = &stream[s_len];
 	put32be(p, 64 + n);
 	for (int i = 4; i < 4 + 64 + n; i++) p[i] = g_rand();
