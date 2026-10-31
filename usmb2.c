@@ -686,6 +686,24 @@ int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid)
 #endif /* USMB2_FEATURE_CLOSE */
 
 
+#ifdef USMB2_FEATURE_STAT
+int usmb2_stat(struct usmb2_context *usmb2, const char *name, uint8_t *st)
+{
+        uint8_t *fid;
+
+        /* desired access: READ ATTRIBUTES, of a file or a directory */
+        fid = usmb2_create(usmb2, name, 0x80, 0x01, 0x00, 0x00, 0, 16);
+        if (fid == NULL) {
+                return -1;
+        }
+        /* CreationTime to FileAttributes in the CREATE reply */
+        memcpy(st, &usmb2->buf[8], 56);
+        usmb2_close(usmb2, fid);
+        free(fid);
+        return 0;
+}
+#endif /* USMB2_FEATURE_STAT */
+
 int32_t usmb2_pread(struct usmb2_context *usmb2, uint8_t *fid, uint8_t *buf, int count, uint64_t offset)
 {
         return usmb2_prw(usmb2, 8, fid, buf, NULL, count, offset);

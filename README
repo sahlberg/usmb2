@@ -15,6 +15,8 @@ and read from files as 'Guest' but where additional features can be selectivly e
 
 -DUSMB2_FEATURE_CLOSE add support for SMB2_CLOSE.
 
+-DUSMB2_FEATURE_STAT adds usmb2_stat() to get the size, times and attributes of a file or directory.
+
 -DUSMB2_FEATURE_NTLM adds NTLMSSP/NTLMv2 user/password authentication. This adds a lot of code and
 basically doubles the size of the client.
 This feature currently adds 2658bytes of code when compiled for x86_64.
@@ -67,6 +69,12 @@ This option implements the SMB2_CLOSE command to close it also on the server.
 This results in 98 additional bytes of program code when compiled on x86_64.
 Short-lived applications typically would not need this feature as the handles will
 be reaped server-side anyway when the session is terminated.
+
+stat support
+------------
+usmb2_stat() returns the [MS-FSCC] 2.4.29 FileNetworkOpenInformation of a file or directory:
+times, size and attributes. Enable with -DUSMB2_FEATURE_STAT.
+This also enables USMB2_FEATURE_CLOSE, and adds 114 bytes on top of it on x86_64.
 
 
 LWIP

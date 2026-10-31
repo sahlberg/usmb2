@@ -16,7 +16,14 @@
  * USMB2_FEATURE_NTLM  : Adds support for NTLMv2
  * USMB2_FEATURE_OPENDIR : Adds support for opendir/readdir
  * USMB2_FEATURE_UNICODE : Adds support for unicode share and filenames
+ * USMB2_FEATURE_STAT  : Adds usmb2_stat()
+ * The ones below USMB2_FEATURE_UNICODE need, and enable, USMB2_FEATURE_CLOSE.
  */
+#if defined(USMB2_FEATURE_STAT)
+#ifndef USMB2_FEATURE_CLOSE
+#define USMB2_FEATURE_CLOSE
+#endif
+#endif
    
 /* The largest buffer we need is for SMB2_CREATE as this PDU contains the full name
  * of the file being opened in UCS2, 2 bytes per character.
@@ -69,5 +76,12 @@ int usmb2_close(struct usmb2_context *usmb2, uint8_t *fid);
 #define usmb2_close(u,f) free(f)
 #define usmb2_closedir(u,f) free(f)
 #endif /* USMB2_FEATURE_CLOSE */
+
+#ifdef USMB2_FEATURE_STAT
+/* Fills in st with the file's [MS-FSCC] 2.4.29 FileNetworkOpenInformation,
+ * 56 bytes in little-endian. Works for files and directories.
+ */
+int usmb2_stat(struct usmb2_context *usmb2, const char *name, uint8_t *st);
+#endif /* USMB2_FEATURE_STAT */
 
 #endif /* !_USMB2_H_ */
