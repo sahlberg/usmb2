@@ -22,6 +22,9 @@
  * USMB2_FEATURE_TINY_TCP : Talks to the server through the tiny TCP/IP stack
  *                          in z80/ instead of the sockets API. Always on for
  *                          Z80.
+ * USMB2_FEATURE_REASSEMBLY : With USMB2_FEATURE_TINY_TCP, collects replies
+ *                          that take several TCP segments, up to
+ *                          USMB2_REASSEMBLY_SIZE bytes (a 2 kbyte READ).
  * USMB2_FEATURE_STAT  : Adds usmb2_stat()
  * USMB2_FEATURE_MKDIR : Adds usmb2_mkdir()
  * USMB2_FEATURE_UNLINK : Adds usmb2_unlink() and usmb2_rmdir()

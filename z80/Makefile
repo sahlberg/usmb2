@@ -28,7 +28,8 @@ HOSTCFILES = smb2-cat-host.c raw.c ip.c tcp.c ../usmb2.c ../ntlm.c ../md4c.c \
 	../md5.c ../hmac-md5.c
 smb2-cat-host: $(HOSTCFILES)
 	gcc -Wall -O2 -I.. -I. -DUSMB2_FEATURE_TINY_TCP -DUSMB2_FEATURE_NTLM \
-		-DUSMB2_FEATURE_OPENDIR -DRS232_TPS=100 -o $@ $(HOSTCFILES)
+		-DUSMB2_FEATURE_OPENDIR -DUSMB2_FEATURE_REASSEMBLY -DRS232_TPS=100 \
+		-o $@ $(HOSTCFILES)
 
 ping.bin: ping.o $(OFILESNET)
 	zcc +zx -o $@ ping.c $(OFILESNET) -lndos -lrs232if1 -create-app 

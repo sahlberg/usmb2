@@ -41,6 +41,13 @@
 #include "tcp.h"
 #include "usmb2.h"
 
+/* Replies to bigger reads take several segments */
+#ifdef USMB2_FEATURE_REASSEMBLY
+#define READ_SIZE 2048
+#else
+#define READ_SIZE 256
+#endif
+
 /* ip hdr + tcp hdr with options + smb2 hdr + 512 bytes of payload */
 #define BUF_SIZE (20 + 60 + 64 + 512)
 uint8_t tcp_buf[BUF_SIZE];
@@ -57,7 +64,7 @@ int main(int argc, char *argv[])
         socklen_t len = sizeof(sin);
         struct usmb2_context *usmb2;
         uint8_t *fh, *dh, *de;
-        char unc[256], buf[256];
+        char unc[256], buf[READ_SIZE];
         int fd, rc, pos;
 
         if (argc != 6) {

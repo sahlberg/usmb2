@@ -71,11 +71,24 @@ tcp_context_t *usmb2_tcp;
 
 static int recv_pos = 0;
 
+#ifdef USMB2_FEATURE_REASSEMBLY
+/* Big enough for the reply to a 2 kbyte READ: SPL, SMB2 and READ headers */
+#ifndef USMB2_REASSEMBLY_SIZE
+#define USMB2_REASSEMBLY_SIZE (4 + 64 + 16 + 2048)
+#endif
+/* Replies that take more than one TCP segment are collected here */
+static uint8_t reasm[USMB2_REASSEMBLY_SIZE];
+#endif /* USMB2_FEATURE_REASSEMBLY */
+
 static int recv_reply_from_socket(uint32_t wanted_mid)
 {
         int rc;
         uint8_t *ptr;
         uint32_t mid;
+#ifdef USMB2_FEATURE_REASSEMBLY
+        uint32_t spl;
+        int len = 0;
+#endif /* USMB2_FEATURE_REASSEMBLY */
 
         recv_pos = 0;
  again:
@@ -88,6 +101,27 @@ static int recv_reply_from_socket(uint32_t wanted_mid)
                 goto again;
         }
         ptr = tcp_rx_buffer(usmb2_tcp);
+#ifdef USMB2_FEATURE_REASSEMBLY
+        if (len + rc > USMB2_REASSEMBLY_SIZE) {
+                return -1;
+        }
+        memcpy(&reasm[len], ptr, rc);
+        len += rc;
+        /* Wait for the rest of the PDU: SPL is its size, without the SPL */
+        if (len < 4) {
+                goto again;
+        }
+        memcpy(&spl, reasm, 4);
+        spl = ntohl(spl);
+        if (spl > USMB2_REASSEMBLY_SIZE - 4) {
+                return -1;
+        }
+        if (len < 4 + (int)spl) {
+                goto again;
+        }
+        ptr = reasm;
+        len = 0;
+#endif /* USMB2_FEATURE_REASSEMBLY */
         memcpy(&mid, &ptr[28], 4);
         mid = htole32(mid);
         if (mid != wanted_mid) {
@@ -152,7 +186,11 @@ static int read_from_socket(struct usmb2_context *usmb2, uint8_t *buf, int len)
 { 
 #ifdef USMB2_FEATURE_TINY_TCP
         uint8_t *ptr;
+#ifdef USMB2_FEATURE_REASSEMBLY
+        ptr = reasm;
+#else
         ptr = tcp_rx_buffer(usmb2_tcp);
+#endif
 
         memcpy(buf, &ptr[recv_pos], len);
         recv_pos += len;
@@ -249,7 +287,13 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
         send_rqst_to_socket();
         
         /* Receive the full request from the TCP layer to a buffer */
+#ifdef USMB2_FEATURE_REASSEMBLY
+        if (recv_reply_from_socket(current_mid)) {
+                return STATUS_CONNECTION_DISCONNECTED;
+        }
+#else
         recv_reply_from_socket(current_mid);
+#endif
 #endif
 
         /*
