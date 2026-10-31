@@ -50,7 +50,7 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         uint16_t domain_name_offset, domain_name_len; char *domain_name;
         uint16_t user_name_offset, user_name_len;
         uint16_t ntlm_response_offset;
-        uint16_t at_type, at_len, out_pdu_size;
+        uint16_t at_type, at_len, out_pdu_size, target_info_len;
         char *target_info;
 
         /* Set offset to start of ntlmssp blob */
@@ -69,11 +69,6 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
 
         ntlm_response_offset = user_name_len + user_name_offset; /* relative to start of NTLMSSP */
 
-        /* Get offset to start of Server Challenge and copy it just before where 'temp'
-           ends up in the response so we can compute the hmac-md5 as linear buffer.
-         */
-        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], &usmb2->buf[ntlmssp_in_offset + 24], 8);
-
  
         /* SessionSetup payload, i.e. NTLMSSP will start at the buffer offset 64 + 24 */
          
@@ -86,22 +81,33 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          */
         target_info = (char *)&usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[ntlmssp_in_offset + 44])];
 
-        /* Copy everything except the trailing EndOfList */
-
-        z = 0;
+        /* Copy everything except the trailing EndOfList.
+         * The length does not fit in a char: servers in a domain send 130+ bytes.
+         */
+        target_info_len = 0;
         while(1) {
-                at_type = le16toh(*(uint16_t *)&target_info[z]);
-                at_len = le16toh(*(uint16_t *)&target_info[z + 2]);
+                at_type = le16toh(*(uint16_t *)&target_info[target_info_len]);
+                at_len = le16toh(*(uint16_t *)&target_info[target_info_len + 2]);
                 if (at_type == 0) {
                         break;
                 }
-                z += 4 + at_len;
+                target_info_len += 4 + at_len;
         }
         offset = 4 + 64 + 24 + ntlm_response_offset + 16 + 28; // AvPairs
-        memcpy(&usmb2->buf[offset], target_info, z);
+        /* The new place overlaps the old one when the TargetInfo is longer than
+         * about 144 + user_name_len bytes, so memmove and not memcpy.
+         */
+        memmove(&usmb2->buf[offset], target_info, target_info_len);
+
+        /* Get offset to start of Server Challenge and copy it just before where 'temp'
+           ends up in the response so we can compute the hmac-md5 as linear buffer.
+           Only now that the TargetInfo is out of the way: this lands in it when it is
+           longer than about 108 + user_name_len bytes.
+         */
+        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], &usmb2->buf[ntlmssp_in_offset + 24], 8);
         
         /* Add TargetName Av entry to the end */
-        offset += z;
+        offset += target_info_len;
         *(uint16_t *)&usmb2->buf[offset] = htole16(9);
         *(uint16_t *)&usmb2->buf[offset + 2] = htole16(10 + domain_name_len);
         offset += 4;
@@ -126,7 +132,8 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
         /*
          * Domain name. Copy to proper offset in the output  buffer and update length/offset.
          */
-        memcpy(&usmb2->buf[4 + 64 + 24 + domain_name_offset], domain_name, domain_name_len);
+        /* This overlaps when the domain name is longer than 100 bytes */
+        memmove(&usmb2->buf[4 + 64 + 24 + domain_name_offset], domain_name, domain_name_len);
         domain_name = (char *)&usmb2->buf[4 + 64 + 24 + domain_name_offset];
         *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 28] = htole16(domain_name_len);
         *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 30] = htole16(domain_name_len);
