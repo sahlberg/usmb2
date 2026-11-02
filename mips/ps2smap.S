@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * The link layer of the tiny stack on Neutrino's smap.irx and ministack.irx
  * (z80/ps2smap.c) for the PS2 IOP (MIPS-I, little endian, o32), size

@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * MD5 for the PS2 IOP (MIPS-I, little endian, o32), size optimised.
  * Drop-in replacement for md5.c: md5Init, md5Update, md5Finalize.

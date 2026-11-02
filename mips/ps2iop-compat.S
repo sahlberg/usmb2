@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * ps2iop-compat.c for the PS2 IOP (MIPS-I, little endian, o32), size
  * optimised: malloc/free/calloc/strdup on the IOP's sysmem, with interrupts

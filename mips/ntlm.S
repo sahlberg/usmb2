@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * NTLMv2 AUTHENTICATE message for the PS2 IOP (MIPS-I, little endian, o32),
  * size optimised. Drop-in replacement for ntlm.c, see there for the layout

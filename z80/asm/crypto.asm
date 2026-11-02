@@ -1,3 +1,4 @@
+; DO NOT EDIT. GENERATED. The C sources are canonical.
 ; crypto.asm - MD4 (RFC1320), MD5 (RFC1321) and HMAC-MD5 (RFC2104) for
 ; usmb2 NTLM auth.  Hand-written, size-optimised Z80 replacement for
 ; md4c.c, md5.c and hmac-md5.c.  sccz80 calling convention (args pushed

@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * MD4 (RFC1320) for the PS2 IOP (MIPS-I, little endian, o32), size optimised.
  * Derived from the RSA Data Security, Inc. MD4 Message-Digest Algorithm.

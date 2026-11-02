@@ -1,3 +1,4 @@
+; DO NOT EDIT. GENERATED. The C sources are canonical.
 ; -----------------------------------------------------------------------------
 ; ntlm.asm - hand-written, size-optimized Z80 rewrite of ntlm_generate_auth()
 ;

@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * HMAC-MD5 (RFC2104) for the PS2 IOP (MIPS-I, little endian, o32), size optimised.
  * Drop-in replacement for hmac-md5.c, on md5Init/md5Update/md5Finalize.

@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * usmb2.c for the PS2 IOP (MIPS-I, little endian, o32), size optimised, with
  * the features Neutrino builds it with: USMB2_FEATURE_TINY_TCP,

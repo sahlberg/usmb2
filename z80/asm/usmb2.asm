@@ -1,3 +1,4 @@
+;; DO NOT EDIT. GENERATED. The C sources are canonical.
 ;; usmb2.asm - hand written, size optimised Z80 implementation of usmb2.c
 ;; (Z80 build).  Drop-in replacement at the sccz80 C ABI level.
 ;;

@@ -1,3 +1,4 @@
+; DO NOT EDIT. GENERATED. The C sources are canonical.
 ;
 ; Hand written Z80 replacement for the code sccz80 generates from slip.c.
 ;

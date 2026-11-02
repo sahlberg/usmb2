@@ -1,3 +1,4 @@
+; DO NOT EDIT. GENERATED. The C sources are canonical.
 ; -----------------------------------------------------------------------------
 ; unicode.asm - hand-written, size-optimized Z80 rewrite of unicode.c
 ;

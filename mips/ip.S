@@ -1,4 +1,5 @@
 /* -*-  mode:asm; tab-width:8; indent-tabs-mode:t;  -*- */
+/* DO NOT EDIT. GENERATED. The C sources are canonical. */
 /*
  * The IPv4 layer of the tiny TCP/IP stack (z80/ip.c) for the PS2 IOP
  * (MIPS-I, little endian, o32), size optimised. Drop-in replacement for ip.c.
