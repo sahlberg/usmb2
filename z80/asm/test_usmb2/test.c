@@ -51,8 +51,10 @@ static void pctx(void)
         printf("sid="); hex((uint8_t *)&g_ctx->session_id, 8);
         printf("tid="); hex((uint8_t *)&g_ctx->tree_id, 4);
         printf("user/pass hash %04x\n", hash((uint8_t *)g_ctx->username, 64));
-        printf("buf hash %04x\n", hash(g_ctx->buf, USMB2_SIZE));
-        hex(g_ctx->buf, 160);
+        /* not buf: what a short reply leaves there is not used, and the C
+         * and asm leave different bytes. Each request clears it, and what
+         * goes out is in the SEND dumps.
+         */
 }
 
 /* ---------- canned server ---------- */
@@ -288,11 +290,14 @@ int main(void)
         pfh(fh, 16);
         pctx();
 #endif
+#ifdef USMB2_FEATURE_OPENDIR
+        /* the 272 byte directory handle is only there with OPENDIR */
         set_status(0);
         dh = usmb2_open(g_ctx, "adir", O_RDONLY | O_DIRECTORY);
         pfh(dh, 20);
         printf("dh hash %04x\n", hash(dh, 272));
         free(dh);
+#endif
 
         printf("== pread\n");
         set_status(0);

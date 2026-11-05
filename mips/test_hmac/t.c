@@ -65,6 +65,8 @@ int main(void)
 		hmac_md5(&b, p0, p1, l1, p2, l2, key, klen, db + off);
 		check("digest", da, db, sizeof(da), iter);
 		/* ctx->input[56..63] after md5Finalize is documented as different */
+		/* size after finalize is not used: md5.c leaves it padded */
+		a.size = b.size = 0;
 		check("ctx", &a, &b, 20 + 56, iter);
 	}
 	t_puts(fails ? "hmac: FAILED\n" : "hmac: all tests passed\n");

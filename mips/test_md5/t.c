@@ -45,7 +45,9 @@ int main(void)
 			check("update", &a, &b, sizeof(a), iter);
 		}
 		c_md5Finalize(&a); md5Finalize(&b);
-		/* input[56..63] after finalize is documented as different */
+		/* input[56..63] after finalize is documented as different, and
+		   size after finalize is not used: md5.c leaves it padded */
+		a.size = b.size = 0;
 		check("final", &a, &b, 20 + 56, iter);
 	}
 	t_puts(fails ? "md5: FAILED\n" : "md5: all tests passed\n");

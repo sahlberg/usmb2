@@ -42,7 +42,7 @@ static void md5s(unsigned char *p, unsigned int n, int mode)
         md5Finalize(c);
         hex(c->input, 16);
         printf(" ");
-        hex(buf, 20);   /* size + buffer */
+        hex(buf + 4, 16);   /* buffer; size after finalize is not used */
         printf("\n");
 }
 
@@ -117,7 +117,7 @@ int main(void)
         hm((unsigned char *)"", NULL, 0, NULL, 0, key, 16);
         hm(NULL, NULL, 0, NULL, 0, key, 0);
         hm((unsigned char *)"Administrator", NULL, 0, (unsigned char *)"WORKGROUP", 9, key, 16);
-        hm((unsigned char *)"x", pat, 0, NULL, 5, key, 64);
+        hm((unsigned char *)"x", pat, 0, NULL, 0, key, 64);   /* NULL text must have length 0 */
         hm((unsigned char *)"\x80\xe1\xff\x7fmIxEd", pat, 119, pat + 3, 1, key, 16);
 
         printf("NTLM pattern\n");

@@ -38,12 +38,14 @@ size_t strlen(const char *s) { size_t n = 0; while (s[n]) n++; return n; }
 /* allocation: a pool each, pointers compared by their offset */
 static uint8_t pool[2][8192] __attribute__((aligned(8)));
 static int pool_used[2];
+static struct usmb2_context *ctx[2];	/* the last context allocated, live or freed */
 static void *alloc(size_t n, size_t m)
 {
 	h(20); h(n * m);
 	if (g_rand() % 40 == 0 || pool_used[side] + n * m > 8000) return NULL;
 	void *p = &pool[side][pool_used[side]];
 	memset(p, 0, n * m);
+	if (n * m == sizeof(struct usmb2_context)) ctx[side] = p;
 	pool_used[side] += (n * m + 7) & ~7;
 	return p;
 }
@@ -76,10 +78,12 @@ static void reply(uint32_t mid, int cmd, uint32_t want)
 	if (want > 2048) want = 2048;
 	/* sometimes more data than asked for: what is left over goes into buf a buffer full at a time */
 	int n = cmd == 8 ? 16 + (g_rand() % 4 ? want : g_rand() % 2048) : g_rand() % 3 ? 16 + g_rand() % 120 : g_rand() % 2000;
+	uint32_t st = g_rand() % 3 ? 0 : g_rand() % 2 ? 0xc0000016 : g_rand();
+	/* a successful reply holds at least the command header we read (88 for CREATE) */
+	if ((st == 0 || st == 0xc0000016) && n < 88) n = 88;
 	uint8_t *p = &stream[s_len];
 	put32be(p, 64 + n);
 	for (int i = 4; i < 4 + 64 + n; i++) p[i] = g_rand();
-	uint32_t st = g_rand() % 3 ? 0 : g_rand() % 2 ? 0xc0000016 : g_rand();
 	memcpy(&p[4 + 8], &st, 4);
 	memcpy(&p[4 + 24], &mid, 4);
 	if (g_rand() % 8 == 0) put32be(p, 3000);	/* too big for reasm */
@@ -127,9 +131,9 @@ int main(void)
 	for (int op = 0; op < 20000; op++) {
 		int what = t_rand() % 12;
 		if (!u[0] || !u[1]) what = 0;
-		if (what == 0) { side = 0; pool_used[0] = pool_used[1] = 0; fid[0] = fid[1] = 0; }
+		if (what == 0) { ctx[0] = ctx[1] = NULL; side = 0; pool_used[0] = pool_used[1] = 0; fid[0] = fid[1] = 0; }
 		rnd_str(user, 31); rnd_str(pass, 31); rnd_str(name, 60);
-		int mode = t_rand() % 2 ? 0 : 8, count = t_rand() % 4 ? 1 + t_rand() % 2048 : t_rand() % 2200;
+		int mode = 0 /* no O_DIRECTORY without OPENDIR */, count = t_rand() % 4 ? 1 + t_rand() % 2048 : t_rand() % 2200;
 		uint64_t off = (uint64_t)t_rand() << 24 | t_rand();
 		int cmd = t_rand() % 2 ? 8 : 9;
 		if (cmd == 9 && count > 1300) count = 1300;	/* a write has to fit in one segment, in C too */
@@ -163,6 +167,8 @@ int main(void)
 				t_puts(" u "); int o = (uint8_t *)u[1] - pool[1]; t_hex((uint8_t *)&o, 2); t_puts("\n");
 			}
 		}
+		/* what is left in buf after an error reply is not used, and differs */
+		if (ctx[0] && ctx[1]) { memset(ctx[0]->buf, 0, sizeof(ctx[0]->buf)); memset(ctx[1]->buf, 0, sizeof(ctx[1]->buf)); }
 		int bad = rc[0] != rc[1] || hh[0] != hh[1] || t_memcmp(data[0], data[1], 2200) ||
 			  t_memcmp(tbuf[0], tbuf[1], 1600) || t_memcmp(pool[0], pool[1], 8192) ||
 			  t_memcmp(&tcp[0].ths, &tcp[1].ths, 1);

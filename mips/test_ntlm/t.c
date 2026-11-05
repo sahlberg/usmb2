@@ -69,7 +69,10 @@ int main(void)
 		int ra = c_ntlm_generate_auth(&a, a.username, a.password);
 		int rb = ntlm_generate_auth(&b, b.username, b.password);
 		check("return", &ra, &rb, 4, iter);
-		/* buf[76..83] is md5.S's documented md5Finalize difference */
+		/* buf[76..83] is md5.S's documented md5Finalize difference, and
+		   buf[0..3], the size of the scratch MD5 context, is not used
+		   after md5Finalize */
+		memset(a.buf, 0, 4); memset(b.buf, 0, 4);
 		check("context", &a, &b, 92 + 76, iter);
 		check("buf", &a.buf[84], &b.buf[84], sizeof(a.buf) - 84, iter);
 	}

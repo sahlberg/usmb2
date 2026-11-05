@@ -52,7 +52,7 @@ def md4(m):
 def md5(m):
     d, p = run(md5_compress, m)
     assert d == hashlib.md5(m).digest()
-    return d.hex() + ' ' + struct.pack('<I', len(m)).hex() + d.hex()
+    return d.hex() + ' ' + d.hex()
 
 pat = bytes(((i * 37 + (i >> 3) * 11 + 5) & 255) for i in range(260))
 vec = [b"", b"a", b"abc", b"message digest", b"abcdefghijklmnopqrstuvwxyz",

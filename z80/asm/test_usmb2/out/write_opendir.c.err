@@ -1,3 +1,3 @@
-/data/sahlberg/usmb2-z80tcpip/z80/asm/test_usmb2/test.c:246:37: warning: Implicit definition of function 'usmb2_negotiateprotocol' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
-/data/sahlberg/usmb2-z80tcpip/z80/asm/test_usmb2/test.c:249:32: warning: Implicit definition of function 'usmb2_sessionsetup' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
-/data/sahlberg/usmb2-z80tcpip/z80/asm/test_usmb2/../../../usmb2.c:646:5: warning: Loss of precision, converting unsigned long u32 to unsigned int n [-Wconversion]
+/data/sahlberg/usmb2/z80/asm/test_usmb2/test.c:248:37: warning: Implicit definition of function 'usmb2_negotiateprotocol' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
+/data/sahlberg/usmb2/z80/asm/test_usmb2/test.c:251:32: warning: Implicit definition of function 'usmb2_sessionsetup' it will return an int. Prototype it explicitly if this is not what you want. [-Wimplicit-function-definition]
+/data/sahlberg/usmb2/z80/asm/test_usmb2/../../../usmb2.c:605:32: warning: Loss of precision, converting unsigned long uint32_t to unsigned int n [-Wconversion]

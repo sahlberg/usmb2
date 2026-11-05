@@ -1,5 +1,7 @@
 /* Differential test: md4c.c (renamed c_*) against mips/md4c.S */
 #include "../common/libt.h"
+/* md4c.c uses memcpy, which the IOP gets from sysclib */
+void *memcpy(void *d, const void *s, size_t n) { uint8_t *p = d; const uint8_t *q = s; while (n--) *p++ = *q++; return d; }
 #include "md4.h"
 void c_MD4Init(MD4_CTX *);
 void c_MD4Update(MD4_CTX *, unsigned char *, unsigned int);
