@@ -27,34 +27,13 @@
 #ifdef USMB2_FEATURE_NTLM
 
 #include <stdint.h>
+#include <string.h>
 
 #include "md4.h"
 
-/* Constants for MD4Transform routine.
+/* Modified for size: the three rounds are one loop, as in md5.c, and the
+ * bit count only has 32 bits. The input is a password, never 512 Mbyte.
  */
-#define S11 3
-#define S12 7
-#define S13 11
-#define S14 19
-#define S21 3
-#define S22 5
-#define S23 9
-#define S24 13
-#define S31 3
-#define S32 9
-#define S33 11
-#define S34 15
-
-static void MD4Transform(uint32_t [4], unsigned char [64]);
-static void Encode(unsigned char *, uint32_t *, unsigned int);
-static void Decode(uint32_t *, unsigned char *, unsigned int);
-static void MD4_memcpy(unsigned char *, unsigned char *, unsigned int);
-
-static unsigned char PADDING[64] = {
-  0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
 
 /* F, G and H are basic MD4 functions.
  */
@@ -66,21 +45,11 @@ static unsigned char PADDING[64] = {
  */
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-/* FF, GG and HH are transformations for rounds 1, 2 and 3 */
-/* Rotation is separate from addition to prevent recomputation */
+/* Shift amounts, four for each round */
+static const unsigned char S[12] = {3, 7, 11, 19,  3, 5, 9, 13,  3, 9, 11, 15};
 
-#define FF(a, b, c, d, x, s) { \
-    (a) += F ((b), (c), (d)) + (x); \
-    (a) = ROTATE_LEFT ((a), (s)); \
-  }
-#define GG(a, b, c, d, x, s) { \
-    (a) += G ((b), (c), (d)) + (x) + (uint32_t)0x5a827999; \
-    (a) = ROTATE_LEFT ((a), (s)); \
-  }
-#define HH(a, b, c, d, x, s) { \
-    (a) += H ((b), (c), (d)) + (x) + (uint32_t)0x6ed9eba1; \
-    (a) = ROTATE_LEFT ((a), (s)); \
-  }
+/* The order round 3 takes the words of the block in */
+static const unsigned char R3[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
 
 /* MD4 initialization. Begins an MD4 operation, writing a new context.
  */
@@ -96,101 +65,39 @@ void MD4Init(MD4_CTX *context)
   context->state[3] = 0x10325476;
 }
 
-/* MD4 block update operation. Continues an MD4 message-digest
-     operation, processing another message block, and updating the
-     context.
- */
-void MD4Update(MD4_CTX *context, unsigned char *input, unsigned int inputLen)
-{
-  unsigned int i, index, partLen;
-
-  /* Compute number of bytes mod 64 */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3F);
-  /* Update number of bits */
-  if ((context->count[0] += ((uint32_t)inputLen << 3))
-      < ((uint32_t)inputLen << 3))
-    context->count[1]++;
-  context->count[1] += ((uint32_t)inputLen >> 29);
-
-  partLen = 64 - index;
-
-  /* Transform as many times as possible.
-   */
-  if (inputLen >= partLen) {
-    MD4_memcpy
-      ((unsigned char *)&context->buffer[index], (unsigned char *)input, partLen);
-    MD4Transform (context->state, context->buffer);
-
-    for (i = partLen; i + 63 < inputLen; i += 64)
-      MD4Transform (context->state, &input[i]);
-
-    index = 0;
-  }
-  else
-    i = 0;
-
-  /* Buffer remaining input */
-  MD4_memcpy
-    ((unsigned char *)&context->buffer[index], (unsigned char *)&input[i],
-     inputLen-i);
-}
-
-/* MD4 finalization. Ends an MD4 message-digest operation, writing the
-     the message digest and zeroizing the context.
- */
-void MD4Final(unsigned char digest[16], MD4_CTX *context)
-{
-  unsigned char bits[8];
-  unsigned int index, padLen;
-
-  /* Save number of bits */
-  Encode (bits, context->count, 8);
-
-  /* Pad out to 56 mod 64.
-   */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-  padLen = (index < 56) ? (56 - index) : (120 - index);
-  MD4Update (context, PADDING, padLen);
-
-  /* Append length (before padding) */
-  MD4Update (context, bits, 8);
-  /* Store state in digest */
-  Encode (digest, context->state, 16);
-}
-
 /* MD4 basic transformation. Transforms state based on block.
  */
 static void MD4Transform(uint32_t state[4], unsigned char block[64])
 {
-  uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
-  int i;
-  
-  Decode (x, block, 64);
+  uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16], t;
+  unsigned int i, k;
 
-  /* Round 1 */
-  for (i = 0; i < 16; i+=4) {
-    FF (a, b, c, d, x[ 0 + i], S11); /* 1 */
-    FF (d, a, b, c, x[ 1 + i], S12); /* 2 */
-    FF (c, d, a, b, x[ 2 + i], S13); /* 3 */
-    FF (b, c, d, a, x[ 3 + i], S14); /* 4 */
-  }
-  
-  /* Round 2 */
-  for (i = 0; i < 4; i++) {
-    GG (a, b, c, d, x[ 0 + i], S21); /* 17 */
-    GG (d, a, b, c, x[ 4 + i], S22); /* 18 */
-    GG (c, d, a, b, x[ 8 + i], S23); /* 19 */
-    GG (b, c, d, a, x[12 + i], S24); /* 20 */
-  }
-  
-  /* Round 3 */
-  for (i = 0; i < 4; i++) {
-    int j = ((i & 1) << 1) | ((i & 2) >> 1);
-  
-    HH (a, b, c, d, x[ 0 + j], S31); /* 33 */
-    HH (d, a, b, c, x[ 8 + j], S32); /* 34 */
-    HH (c, d, a, b, x[ 4 + j], S33); /* 35 */
-    HH (b, c, d, a, x[12 + j], S34); /* 36 */
+  /* Decode the block into 32 bit little-endian words */
+  for (i = 0; i < 16; i++, block += 4)
+    x[i] = ((uint32_t)block[0]) | (((uint32_t)block[1]) << 8) |
+      (((uint32_t)block[2]) << 16) | (((uint32_t)block[3]) << 24);
+
+  for (i = 0; i < 48; i++) {
+    switch (i >> 4) {
+    case 0:
+      t = F(b, c, d);
+      k = i;
+      break;
+    case 1:
+      t = G(b, c, d) + 0x5a827999;
+      k = ((i & 3) << 2) | ((i >> 2) & 3);
+      break;
+    default:
+      t = H(b, c, d) + 0x6ed9eba1;
+      k = R3[i & 15];
+      break;
+    }
+    /* a = (a + f(b, c, d) + x[k]) <<< s, then rotate the names a, b, c, d */
+    t += a + x[k];
+    a = d;
+    d = c;
+    c = b;
+    b = ROTATE_LEFT(t, S[((i >> 2) & 0x0c) | (i & 3)]);
   }
 
   state[0] += a;
@@ -199,42 +106,61 @@ static void MD4Transform(uint32_t state[4], unsigned char block[64])
   state[3] += d;
 }
 
-/* Encodes input (uint32_t) into output (unsigned char). Assumes len is
-     a multiple of 4.
+/* MD4 block update operation. Continues an MD4 message-digest
+     operation, processing another message block, and updating the
+     context.
  */
-static void Encode(unsigned char *output, uint32_t *input, unsigned int len)
+void MD4Update(MD4_CTX *context, unsigned char *input, unsigned int inputLen)
 {
-  unsigned int i, j;
+  unsigned int index, partLen;
 
-  for (i = 0, j = 0; j < len; i++, j += 4) {
-    output[j] = (unsigned char)(input[i] & 0xff);
-    output[j+1] = (unsigned char)((input[i] >> 8) & 0xff);
-    output[j+2] = (unsigned char)((input[i] >> 16) & 0xff);
-    output[j+3] = (unsigned char)((input[i] >> 24) & 0xff);
+  /* Compute number of bytes mod 64 */
+  index = (unsigned int)((context->count[0] >> 3) & 0x3F);
+  /* Update number of bits */
+  context->count[0] += (uint32_t)inputLen << 3;
+
+  partLen = 64 - index;
+
+  /* Transform as many times as possible.
+   */
+  while (inputLen >= partLen) {
+    memcpy(&context->buffer[index], input, partLen);
+    MD4Transform(context->state, context->buffer);
+    input += partLen;
+    inputLen -= partLen;
+    index = 0;
+    partLen = 64;
   }
+
+  /* Buffer remaining input */
+  memcpy(&context->buffer[index], input, inputLen);
 }
 
-/* Decodes input (unsigned char) into output (uint32_t). Assumes len is
-     a multiple of 4.
+/* MD4 finalization. Ends an MD4 message-digest operation, writing the
+     the message digest.
  */
-static void Decode(uint32_t *output, unsigned char *input, unsigned int len)
+void MD4Final(unsigned char digest[16], MD4_CTX *context)
 {
-  unsigned int i, j;
-
-  for (i = 0, j = 0; j < len; i++, j += 4)
-    output[i] = ((uint32_t)input[j]) | (((uint32_t)input[j+1]) << 8) |
-      (((uint32_t)input[j+2]) << 16) | (((uint32_t)input[j+3]) << 24);
-}
-
-/* Note: Replace "for loop" with standard memcpy if possible.
- */
-static void MD4_memcpy(unsigned char *output, unsigned char *input, unsigned int len)
-{
+  uint32_t bits = context->count[0];
+  unsigned char c = 0x80;
   unsigned int i;
 
-  for (i = 0; i < len; i++)
-    output[i] = input[i];
+  /* Pad out to 56 mod 64 with a one bit and then zeros
+   */
+  do {
+    MD4Update(context, &c, 1);
+    c = 0;
+  } while (((context->count[0] >> 3) & 0x3f) != 56);
+
+  /* Append the length in bits before padding, 64 bits little-endian */
+  for (i = 0; i < 8; i++, bits >>= 8) {
+    c = bits;
+    MD4Update(context, &c, 1);
+  }
+
+  /* Store state in digest */
+  for (i = 0; i < 16; i++)
+    digest[i] = context->state[i >> 2] >> ((i & 3) << 3);
 }
 
 #endif /* USMB2_FEATURE_NTLM */
-

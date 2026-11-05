@@ -41,37 +41,40 @@
  * SessionSetup Request header     : 24 bytes, to be filled in later
  * Outgoing NTLMSSP SecurityBuffer : hundreds of bytes. To be filled in by this function.
  */
+/* Writes an NTLMSSP security buffer: length, maximum length and offset */
+static void put_secbuf(uint8_t *p, uint16_t len, uint16_t offset)
+{
+        *(uint16_t *)&p[0] = htole16(len);
+        *(uint16_t *)&p[2] = htole16(len);
+        *(uint32_t *)&p[4] = htole32(offset);
+}
+
 int ntlm_generate_auth(struct usmb2_context *usmb2,
                        char *username,
                        char *password)
 {
-        char NTOWFv2[16], z = 0;
-        uint16_t ntlmssp_in_offset, ntlmssp_out_offset, offset;
-        uint16_t domain_name_offset, domain_name_len; char *domain_name;
-        uint16_t user_name_offset, user_name_len;
-        uint16_t ntlm_response_offset;
-        uint16_t at_type, at_len, out_pdu_size, target_info_len;
-        char *target_info;
+        char NTOWFv2[16], z;
+        uint8_t *buf = usmb2->buf;
+        uint8_t *in, *out, *resp, *p, *domain_name, *target_info;
+        uint16_t domain_name_len, user_name_len, target_info_len;
+        uint16_t ntlm_response_offset, ntlm_response_len, i;
 
-        /* Set offset to start of ntlmssp blob */
-        ntlmssp_in_offset = le16toh(*(uint16_t *)&usmb2->buf[4]) - 64;
-        ntlmssp_out_offset = 4 + 64 + 24;
- 
-        /* Get offset to start of TargetName */
-        offset = ntlmssp_in_offset + 12; /* skip past NTLMSSP signature and message type */
+        /* The incoming NTLMSSP blob, CHALLENGE, and the outgoing one, AUTH */
+        in = &buf[le16toh(*(uint16_t *)&buf[4]) - 64];
+        out = &buf[4 + 64 + 24];
 
         /* Grab Target/Domain name from the challenge buffer */
-        domain_name_len = le16toh(*(uint16_t *)&usmb2->buf[offset]);
-        domain_name = (char *)&usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[offset + 4])];
-        domain_name_offset = 72; /* This is where AUTH ends on pre-2003 */
+        domain_name_len = le16toh(*(uint16_t *)&in[12]);
+        domain_name = &in[le32toh(*(uint32_t *)&in[16])];
         user_name_len = strlen(username) * 2;
-        user_name_offset = domain_name_len + domain_name_offset;
 
-        ntlm_response_offset = user_name_len + user_name_offset; /* relative to start of NTLMSSP */
+        /* In AUTH the domain name comes at offset 72, which is where AUTH
+         * ends on pre-2003, then the user name, then the NT response.
+         * Offsets are relative to the start of NTLMSSP.
+         */
+        ntlm_response_offset = 72 + domain_name_len + user_name_len;
+        resp = &out[ntlm_response_offset];
 
- 
-        /* SessionSetup payload, i.e. NTLMSSP will start at the buffer offset 64 + 24 */
-         
         /* Start by moving the TargetInfo buffer we received from the server in the CHALLENGE message
          * to where it will end up at the end of the auth message we are building.
          * Depending on the size of the TargetName, this shifts the offset into the NTLMSSP
@@ -79,143 +82,113 @@ int ntlm_generate_auth(struct usmb2_context *usmb2,
          * In the AUTH we are building the LmChallengeResponse data often ends up laid
          * your starting at offset ~110 and the AvPairs are laid out another 16 + 28 bytes into that.
          */
-        target_info = (char *)&usmb2->buf[ntlmssp_in_offset + le32toh(*(uint32_t *)&usmb2->buf[ntlmssp_in_offset + 44])];
+        target_info = &in[le32toh(*(uint32_t *)&in[44])];
 
-        /* Copy everything except the trailing EndOfList.
+        /* Copy everything except the trailing EndOfList, the AvPair with type 0.
          * The length does not fit in a char: servers in a domain send 130+ bytes.
          */
         target_info_len = 0;
-        while(1) {
-                at_type = le16toh(*(uint16_t *)&target_info[target_info_len]);
-                at_len = le16toh(*(uint16_t *)&target_info[target_info_len + 2]);
-                if (at_type == 0) {
-                        break;
-                }
-                target_info_len += 4 + at_len;
+        while (*(uint16_t *)&target_info[target_info_len]) {
+                target_info_len += 4 + le16toh(*(uint16_t *)&target_info[target_info_len + 2]);
         }
-        offset = 4 + 64 + 24 + ntlm_response_offset + 16 + 28; // AvPairs
+        p = &resp[16 + 28]; // AvPairs
         /* The new place overlaps the old one when the TargetInfo is longer than
          * about 144 + user_name_len bytes, so memmove and not memcpy.
          */
-        memmove(&usmb2->buf[offset], target_info, target_info_len);
+        memmove(p, target_info, target_info_len);
 
         /* Get offset to start of Server Challenge and copy it just before where 'temp'
            ends up in the response so we can compute the hmac-md5 as linear buffer.
            Only now that the TargetInfo is out of the way: this lands in it when it is
            longer than about 108 + user_name_len bytes.
          */
-        memcpy(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 8], &usmb2->buf[ntlmssp_in_offset + 24], 8);
-        
-        /* Add TargetName Av entry to the end */
-        offset += target_info_len;
-        *(uint16_t *)&usmb2->buf[offset] = htole16(9);
-        *(uint16_t *)&usmb2->buf[offset + 2] = htole16(10 + domain_name_len);
-        offset += 4;
-        *(uint16_t *)&usmb2->buf[offset] = htole16('c');
-        offset += 2;
-        *(uint16_t *)&usmb2->buf[offset] = htole16('i');
-        offset += 2;
-        *(uint16_t *)&usmb2->buf[offset] = htole16('f');
-        offset += 2;
-        *(uint16_t *)&usmb2->buf[offset] = htole16('s');
-        offset += 2;
-        *(uint16_t *)&usmb2->buf[offset] = htole16('/');
-        offset += 2;
-        memcpy(&usmb2->buf[offset], domain_name, domain_name_len);
-        offset += domain_name_len;
-        
+        memcpy(&resp[8], &in[24], 8);
+
+        /* Add TargetName Av entry to the end: "cifs/" and the domain name in UCS2 */
+        p += target_info_len;
+        *(uint16_t *)&p[0] = htole16(9);
+        *(uint16_t *)&p[2] = htole16(10 + domain_name_len);
+        memcpy(&p[4], "c\0i\0f\0s\0/", 10);
+        memcpy(&p[14], domain_name, domain_name_len);
+        p += 14 + domain_name_len;
+
         /* and a final EndOfList plus 4 bytes of padding*/
-        memset(&usmb2->buf[offset], 0, 8);
-        offset += 8;
-        out_pdu_size = offset;
-                
+        memset(p, 0, 8);
+        p += 8;
+        ntlm_response_len = p - resp;
+
         /*
          * Domain name. Copy to proper offset in the output  buffer and update length/offset.
          */
         /* This overlaps when the domain name is longer than 100 bytes */
-        memmove(&usmb2->buf[4 + 64 + 24 + domain_name_offset], domain_name, domain_name_len);
-        domain_name = (char *)&usmb2->buf[4 + 64 + 24 + domain_name_offset];
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 28] = htole16(domain_name_len);
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 30] = htole16(domain_name_len);
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 32] = htole32(domain_name_offset);
+        memmove(&out[72], domain_name, domain_name_len);
+        domain_name = &out[72];
+        put_secbuf(&out[28], domain_name_len, 72);
 
         /*
          * NT Response
          */
-        at_type = out_pdu_size - 4 - 64 - 24 - ntlm_response_offset;
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 20] = htole16(at_type);
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 22] = htole16(at_type);
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 24] = htole32(ntlm_response_offset);
-          
+        put_secbuf(&out[20], ntlm_response_len, ntlm_response_offset);
+
         /*
          * User name
          */
-        for(at_type = 0; at_type < user_name_len;) {
-                usmb2->buf[4 + 64 + 24 + user_name_offset + at_type++] = username[at_type >> 1];
-                usmb2->buf[4 + 64 + 24 + user_name_offset + at_type++] = 0;
+        for (i = 0; i < user_name_len; i += 2) {
+                out[72 + domain_name_len + i] = username[i >> 1];
+                out[72 + domain_name_len + i + 1] = 0;
         }
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 36] = htole16(user_name_len);
-        *(uint16_t *)&usmb2->buf[ntlmssp_out_offset + 38] = htole16(user_name_len);
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 40] = htole32(user_name_offset);
+        put_secbuf(&out[36], user_name_len, 72 + domain_name_len);
+
         /*
-         * Host name and remaining fields
+         * Host name, session key, negotiate flags and version
          */
-        memset(&usmb2->buf[ntlmssp_out_offset + 44], 0, 12);
-
-        /* Negotiate flags */
-        *(uint32_t *)&usmb2->buf[ntlmssp_out_offset + 56] = htole32(0x20088037);
-
-        /* Version */
-        memset(&usmb2->buf[ntlmssp_out_offset + 60], 0, 8);
+        memset(&out[44], 0, 24);
+        *(uint32_t *)&out[56] = htole32(0x20088037);
 
         /* At this point we no longer need to reference anything from the incoming security buffer
          * so we can use the early parts of the buffer as a scratch area. 4 + 64 + 24 + 20 bytes.
          */
-        
+
         /* Generate NTOWFv1 */
-        /* The MD4 context is 64 bytes so it fits in the scratch area
+        /* The MD4 context is 88 bytes so it fits in the scratch area
         * Store NTOWFv1 at offset 4 + 64 + 24 + 4 */
-        MD4Init((MD4_CTX *)&usmb2->buf[0]);
+        MD4Init((MD4_CTX *)&buf[0]);
         z = 0;
         while (*password) {
-                MD4Update((MD4_CTX *)&usmb2->buf[0], password++, 1);
-                MD4Update((MD4_CTX *)&usmb2->buf[0], &z, 1);
+                MD4Update((MD4_CTX *)&buf[0], (unsigned char *)password++, 1);
+                MD4Update((MD4_CTX *)&buf[0], (unsigned char *)&z, 1);
         }
-        MD4Final(&usmb2->buf[4 + 64 + 24 + 4], (MD4_CTX *)&usmb2->buf[0]);
+        MD4Final(&out[4], (MD4_CTX *)&buf[0]);
 
         /* Compute NTOWFv2 */
         /* We don't have enough scratch area to store NTOWFv2 too :-( */
-        hmac_md5((struct MD5Context *)&usmb2->buf[0],
-                 username,
+        hmac_md5((struct MD5Context *)&buf[0],
+                 (unsigned char *)username,
                  NULL, 0,
                  domain_name, domain_name_len,
-                 &usmb2->buf[4 + 64 + 24 + 4], 16, NTOWFv2);
+                 &out[4], 16, (unsigned char *)NTOWFv2);
 
         /*
          * Clear beginning of ntlmv2 response and fill in all non-zero parts
          */
-        memset(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 16], 0, 28);
+        memset(&resp[16], 0, 28);
         /* resp type and hi resp type */
-        *(uint16_t *)&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 16] = 0x0101;
+        *(uint16_t *)&resp[16] = 0x0101;
         /* client challenge QQQQ */
-        memset(&usmb2->buf[4 + 64 + 24 + ntlm_response_offset + 32], 1, 8);
-        
-        
-        at_type = 4 + 64 + 24 + ntlm_response_offset;
-        at_len = out_pdu_size - 4 - 64 - 24 - ntlm_response_offset;
-        
-        hmac_md5((struct MD5Context *)&usmb2->buf[0],
+        memset(&resp[32], 1, 8);
+
+        hmac_md5((struct MD5Context *)&buf[0],
                  NULL,
-                 &usmb2->buf[at_type + 8],  at_len - 8,
+                 &resp[8], ntlm_response_len - 8,
                  NULL, 0,
-                 NTOWFv2, 16, &usmb2->buf[4 + 64 + 24 + ntlm_response_offset]);
+                 (unsigned char *)NTOWFv2, 16, resp);
 
 
         /* Fill in the first 20 bytes of the NTLMSSP buffer */
-        memset(&usmb2->buf[4 + 64 + 24 + 8], 0, 12);
-        usmb2->buf[4 + 64 + 24 + 8] = 3;
-        
-        return out_pdu_size - 4 - 64 - 24;
+        memset(&out[8], 0, 12);
+        out[8] = 3;
+
+        return p - out;
 }
 
 #endif /* USMB2_FEATURE_NTLM */

@@ -16,12 +16,12 @@
 #define C 0x98badcfe
 #define D 0x10325476
 
-static uint8_t  S[] = {7, 12, 17, 22,
+static const uint8_t S[] = {7, 12, 17, 22,
  		       5,  9, 14, 20,
 		       4, 11, 16, 23,
 		       6, 10, 15, 21};
 
-static uint32_t K[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
+static const uint32_t K[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
                        0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
                        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
                        0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
@@ -49,7 +49,7 @@ static uint32_t K[] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
 /*
  * Rotates a 32-bit word left by n bits
  */
-uint32_t rotateLeft(uint32_t x, uint8_t n){
+static uint32_t rotateLeft(uint32_t x, uint8_t n){
     return (x << n) | (x >> (32 - n));
 }
 
@@ -78,18 +78,13 @@ void md5Update(struct MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
     ctx->size += input_len;
 
     // Copy each byte in input_buffer into the next space in our context input
-    for(unsigned int i = 0; i < input_len; ++i){
-        ctx->input[offset++] = (uint8_t)*(input_buffer + i);
+    while (input_len--) {
+        ctx->input[offset++] = *input_buffer++;
 
-        // If we've filled our context input, copy it into our local array input
-        // then reset the offset to 0 and fill in a new buffer.
-        // Every time we fill out a chunk, we run it through the algorithm
-        // to enable some back and forth between cpu and i/o
-        if(offset % 64 == 0){
+        // Every time we fill out a chunk, convert it to 32-bit little-endian
+        // words and run it through the algorithm
+        if(offset == 64){
             for(unsigned int j = 0; j < 16; ++j){
-                // Convert to little-endian
-                // The local variable `input` our 512-bit chunk separated into 32-bit words
-                // we can use in calculations
                 input[j] = (uint32_t)(ctx->input[(j * 4) + 3]) << 24 |
                            (uint32_t)(ctx->input[(j * 4) + 2]) << 16 |
                            (uint32_t)(ctx->input[(j * 4) + 1]) <<  8 |
@@ -102,43 +97,29 @@ void md5Update(struct MD5Context *ctx, uint8_t *input_buffer, size_t input_len){
 }
 
 /*
- * Pad the current input to get to 448 bytes, append the size in bits to the very end,
- * and save the result of the final iteration into digest.
+ * Pad the current input to 56 bytes mod 64, append the size in bits,
+ * and store the digest in ctx->input[0..15].
  */
 void md5Finalize(struct MD5Context *ctx){
-    uint32_t input[16];
-    unsigned int offset = ctx->size % 64;
-    unsigned int padding_length = offset < 56 ? 56 - offset : (56 + 64) - offset;
-    
-    // Fill in the padding and undo the changes to size that resulted from the update
-    uint8_t pad = 0x80;
-    int i = padding_length;
-    while (i) {
-        md5Update(ctx, &pad, 1);
-        i--;
-	pad = 0;
-    }
-    ctx->size -= padding_length;
-    
-    // Do a final update (internal to this function)
-    // Last two 32-bit words are the two halves of the size (converted from bytes to bits)
-    for(unsigned int j = 0; j < 14; ++j){
-        input[j] = (uint32_t)(ctx->input[(j * 4) + 3]) << 24 |
-                   (uint32_t)(ctx->input[(j * 4) + 2]) << 16 |
-                   (uint32_t)(ctx->input[(j * 4) + 1]) <<  8 |
-                   (uint32_t)(ctx->input[(j * 4)]);
-    }
-    input[14] = (uint32_t)(ctx->size * 8);
-    input[15] = 0;
+    uint32_t bits = ctx->size * 8;
+    uint8_t c = 0x80;
+    unsigned int i;
 
-    md5Step(ctx->buffer, input);
+    // A one bit, then zeros up to 56 mod 64
+    do {
+        md5Update(ctx, &c, 1);
+        c = 0;
+    } while (ctx->size % 64 != 56);
+
+    // The size in bits as 64-bit little-endian. This fills the last block.
+    for(i = 0; i < 8; ++i, bits >>= 8){
+        c = bits;
+        md5Update(ctx, &c, 1);
+    }
 
     // Move the result into digest (convert from little-endian)
-    for(unsigned int i = 0; i < 4; ++i){
-        ctx->input[(i * 4) + 0] = (uint8_t)((ctx->buffer[i] & 0x000000FF));
-        ctx->input[(i * 4) + 1] = (uint8_t)((ctx->buffer[i] & 0x0000FF00) >>  8);
-        ctx->input[(i * 4) + 2] = (uint8_t)((ctx->buffer[i] & 0x00FF0000) >> 16);
-        ctx->input[(i * 4) + 3] = (uint8_t)((ctx->buffer[i] & 0xFF000000) >> 24);
+    for(i = 0; i < 16; ++i){
+        ctx->input[i] = ctx->buffer[i >> 2] >> ((i & 3) * 8);
     }
 }
 
