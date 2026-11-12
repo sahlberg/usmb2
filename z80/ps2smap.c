@@ -54,7 +54,7 @@
  * in the smap driver's thread, as the FIFO moves on when it returns. Two, as
  * a reply may be two segments that arrive back to back.
  */
-#define RX_SLOTS 2
+#define RX_SLOTS 4
 static struct {
         uint16_t len; /* of the IP packet */
         uint8_t frame[FRAME_SIZE] __attribute__((aligned(4)));
