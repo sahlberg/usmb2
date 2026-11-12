@@ -139,6 +139,9 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
         /* Window */
         cs = htons(window);
         memcpy(&ptr[14], &cs, 2); 
+#ifndef __Z88DK
+        tcp->rwnd = window;
+#endif
 
         /* Checksum */
         cs = csum((uint16_t *)&ptr[-12], 12 + tcp_hl + len);
@@ -262,7 +265,11 @@ int tcp_recv_timeout(tcp_context_t *tcp, int len, int to)
                 len = tcp->ip.pkt_size - 44;
         }
         /* We want data so we must first open the window */
+#ifdef __Z88DK
         if (len) {
+#else
+        if (len && tcp->rwnd == 0) {
+#endif
                 tcp_send(tcp, 0, NULL, len);
         }
 
@@ -338,15 +345,29 @@ int tcp_recv_timeout(tcp_context_t *tcp, int len, int to)
                  * we have so the peer resends what is missing.
                  */
                 if (seq != tcp->ack) {
+#ifdef __Z88DK
                         tcp_send(tcp, 0, NULL, 0);
+#else
+                        tcp_send(tcp, 0, NULL, tcp->rwnd);
+#endif
                         return 0;
                 }
 
                 if (len > 20 + 20) {
                         tcp->ack += len - 20 - tcp->ths;
                 }
+#ifdef __Z88DK
                 /* ACK the data we got and close the window */
                 tcp_send(tcp, 0, NULL, 0);
+#else
+                /*
+                 * ACK the data we got. Leave the window open for the rest
+                 * of what it was opened for, so that the peer sends it
+                 * straight away and not after a window update of ours.
+                 */
+                i = len - 20 - tcp->ths;
+                tcp_send(tcp, 0, NULL, tcp->rwnd > i ? tcp->rwnd - i : 0);
+#endif
         }
 
         return len - 20 - tcp->ths;

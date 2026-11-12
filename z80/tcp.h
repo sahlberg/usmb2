@@ -42,6 +42,9 @@ typedef struct tcp_context {
         uint32_t seq;
         uint32_t ack;
         uint8_t ths;  /* most recent data segment tcp header size */
+#ifndef __Z88DK
+        uint16_t rwnd; /* the window we last advertised, less what came in */
+#endif
 } tcp_context_t;
 
 
