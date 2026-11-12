@@ -59,6 +59,7 @@
 #define CMD_SETINFO            17
 
 #define STATUS_SUCCESS          0x00000000
+#define STATUS_PENDING          0x00000103
 #define STATUS_MORE_PROCESSING  0xc0000016
 #define STATUS_CONNECTION_DISCONNECTED 0xc000020c
 
@@ -280,7 +281,10 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
 
 #ifdef USMB2_FEATURE_TINY_TCP
         send_rqst_to_socket();
-        
+#endif
+
+ again:
+#ifdef USMB2_FEATURE_TINY_TCP
         /* Receive the full request from the TCP layer to a buffer */
 #ifdef USMB2_FEATURE_REASSEMBLY
         if (recv_reply_from_socket(current_mid)) {
@@ -305,14 +309,27 @@ static uint32_t usmb2_build_request(struct usmb2_context *usmb2,
                 usmb2->tree_id = *(uint32_t *)&hdr[36];
         }
 
-        //qqq handle keepalives
-        
         /*
-         * Status, fail hard if not successful.  Might need to add a check for pending here.
+         * Status, fail hard if not successful.
          * Read status before we read all the padding data into buf, potentially overwriting the smb2 header.
          * .. NegotiateProtocol contexts entered the chat ...
          */
         status = le32toh(*(uint32_t *)&hdr[8]);
+
+        /*
+         * An interim reply ([MS-SMB2] 3.3.4.2), which a server sends when the
+         * request takes a while: the real one, with the same message id,
+         * comes later. Reading the interim one as the reply would put us out
+         * of step, so skip its body and wait for the next. The tiny TCP stack
+         * already has it all and starts afresh with the next reply.
+         */
+        if (status == STATUS_PENDING) {
+#ifndef USMB2_FEATURE_TINY_TCP
+                read_reply(usmb2, usmb2->buf, sizeof(usmb2->buf), &spl);
+                if (usmb2->fd >= 0)
+#endif
+                goto again;
+        }
 
         /*
          * Read command header, then the data
@@ -464,7 +481,7 @@ int usmb2_treeconnect(struct usmb2_context *usmb2, const char *unc)
         ptr[4] = 0x48;
         /* unc length in bytes. i.e. 2 times the number of ucs2 characters */
         len = usmb2_put_name(&usmb2->buf[4 + 0x48], unc);
-        ptr[6] = len;
+        *(uint16_t *)&ptr[6] = htole16(len);
 
         if (usmb2_build_request(usmb2,
                                 CMD_TREE_CONNECT, 8 + len, 16,
@@ -509,7 +526,7 @@ static uint8_t *usmb2_create(struct usmb2_context *usmb2, const char *name,
         ptr[44] = 0x78;
         len = usmb2_put_name(&usmb2->buf[4 + 0x78], name);
         /* name length in bytes. i.e. 2 times the number of ucs2 characters */
-        ptr[46] = len;
+        *(uint16_t *)&ptr[46] = htole16(len);
 
         if (usmb2_build_request(usmb2,
                                 CMD_CREATE, 0x38 + len + 8, 88,
@@ -764,7 +781,7 @@ int usmb2_rename(struct usmb2_context *usmb2, const char *oldname, const char *n
 
         /* FileRenameInformation: ReplaceIfExists=0, RootDirectory=0, then the new name */
         len = usmb2_put_name(&usmb2->buf[4 + 0x60 + 20], newname);
-        usmb2->buf[4 + 0x60 + 16] = len;
+        *(uint16_t *)&usmb2->buf[4 + 0x60 + 16] = htole16(len);
         /* buffer length */
         *(uint16_t *)&usmb2->buf[4 + 64 + 4] = htole16(20 + len);
 
