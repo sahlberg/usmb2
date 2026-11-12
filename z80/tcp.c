@@ -161,6 +161,14 @@ int tcp_send(tcp_context_t *tcp, int len, uint8_t *data, int window)
          * delayed ACK, as it has to hold its answer back otherwise.
          */
         if (window && len) {
+                /*
+                 * The data is out, so the next segment, the ACK of the
+                 * answer included, comes after it. Do not wait for the
+                 * peer's ACK to move on: one that sends its answer
+                 * before it ACKs our data would see segments behind
+                 * its rcv.nxt.
+                 */
+                tcp->seq = oseq + len;
                 return 0;
         }
 #endif
